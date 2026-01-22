@@ -46,8 +46,8 @@ jobs:
           - { name: 'edgegate-core-linux-amd64', os: 'ubuntu-22.04', target: 'linux-amd64' }
           - { name: 'edgegate-core-linux-arm64', os: 'ubuntu-24.04-arm', target: 'linux-arm64' }
           - { name: "edgegate-core-windows-amd64", os: 'ubuntu-latest', target: 'windows-amd64', aarch: 'x64' }
-          - { name: "edgegate-core-macos", os: 'macos-13', target: 'macos' }
-          - { name: "edgegate-core-ios", os: "macos-13", target: "ios" }
+          - { name: "edgegate-core-macos", os: 'macos-15-intel', target: 'macos' }
+          - { name: "edgegate-core-ios", os: "macos-15-intel", target: "ios" }
           # linux custom
           - {name: edgegate-cli-linux-amd64, goos: linux, goarch: amd64, goamd64: v1, target: 'linux-custom', os: 'ubuntu-22.04'}
           - {name: edgegate-cli-linux-amd64-v3, goos: linux, goarch: amd64, goamd64: v3, target: 'linux-custom', os: 'ubuntu-22.04'}
