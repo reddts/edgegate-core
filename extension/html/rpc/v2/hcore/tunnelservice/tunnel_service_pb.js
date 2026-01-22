@@ -1,0 +1,27 @@
+// source: v2/hcore/tunnelservice/tunnel_service.proto
+/**
+ * @fileoverview
+ * @enhanceable
+ * @suppress {missingRequire} reports error on implicit type usages.
+ * @suppress {messageConventions} JS Compiler reports an error if a variable or
+ *     field starts with 'MSG_' and isn't a translatable message.
+ * @public
+ */
+// GENERATED CODE -- DO NOT EDIT!
+/* eslint-disable */
+// @ts-nocheck
+
+var jspb = require('google-protobuf');
+var goog = jspb;
+var global = (function() {
+  if (this) { return this; }
+  if (typeof window !== 'undefined') { return window; }
+  if (typeof global !== 'undefined') { return global; }
+  if (typeof self !== 'undefined') { return self; }
+  return Function('return this')();
+}.call(null));
+
+var v2_hcommon_common_pb = require('../../../v2/hcommon/common_pb.js');
+goog.object.extend(proto, v2_hcommon_common_pb);
+var v2_hcore_tunnelservice_tunnel_pb = require('../../../v2/hcore/tunnelservice/tunnel_pb.js');
+goog.object.extend(proto, v2_hcore_tunnelservice_tunnel_pb);

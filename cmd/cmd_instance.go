@@ -1,0 +1,59 @@
+package cmd
+
+import (
+	"os"
+	"os/signal"
+	"syscall"
+
+	hcore "github.com/reddts/edgegate-core/v2/hcore"
+	"github.com/sagernet/sing-box/log"
+	"github.com/spf13/cobra"
+)
+
+var commandInstance = &cobra.Command{
+	Use:   "instance",
+	Short: "instance",
+	Args:  cobra.OnlyValidArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		coreSetting := defaultConfigs
+		if coreSettingPath != "" {
+			coreSetting2, err := hcore.ReadCoreOptionsAt(coreSettingPath)
+			if err != nil {
+				log.Fatal(err)
+			}
+			coreSetting = *coreSetting2
+		}
+
+		instance, err := hcore.RunInstanceString(&coreSetting, configPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer instance.Close()
+		ping, err := instance.PingAverage("http://cp.cloudflare.com", 4)
+		if err != nil {
+			// log.Fatal(err)
+		}
+		log.Info("Average Ping to Cloudflare : ", ping, "\n")
+
+		for i := 1; i <= 4; i++ {
+			ping, err := instance.PingCloudflare()
+			if err != nil {
+				log.Warn(i, " Error ", err, "\n")
+			} else {
+				log.Info(i, " Ping time: ", ping, " ms\n")
+			}
+		}
+		log.Info("Instance is running on port socks5://127.0.0.1:", instance.ListenPort, "\n")
+		log.Info("Press Ctrl+C to exit\n")
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+		<-sigChan
+		log.Info("CTRL+C recived-->stopping\n")
+		instance.Close()
+	},
+}
+
+func init() {
+	mainCommand.AddCommand(commandInstance)
+	addHConfigFlags(commandInstance)
+}
