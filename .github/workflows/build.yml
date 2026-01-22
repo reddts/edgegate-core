@@ -77,37 +77,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Ensure warp-plus local module
-        run: |
-          if [ ! -f localmods/warp-plus/go.mod ]; then
-            echo "localmods/warp-plus missing, fetching v1.2.4 from upstream"
-            rm -rf localmods/warp-plus
-            git clone --depth 1 --branch v1.2.4 https://github.com/bepass-org/warp-plus.git localmods/warp-plus
-          fi
-      - name: Ensure ray2sing local module
-        run: |
-          if [ ! -f localmods/ray2sing/go.mod ]; then
-            echo "localmods/ray2sing missing, fetching c5cf020d501f from upstream"
-            rm -rf localmods/ray2sing
-            git clone https://github.com/hiddify/ray2sing.git localmods/ray2sing
-            cd localmods/ray2sing
-            git checkout c5cf020d501f
-          fi
-      - name: Ensure xray-core local module
-        run: |
-          if [ ! -f localmods/xray-core/go.mod ]; then
-            echo "localmods/xray-core missing, fetching v1.8.21 from upstream"
-            rm -rf localmods/xray-core
-            git clone --depth 1 --branch v1.8.21 https://github.com/XTLS/Xray-core.git localmods/xray-core
-          fi
-      - name: Ensure wireguard-go local module
-        run: |
-          if [ ! -f localmods/wireguard-go/go.mod ]; then
-            echo "localmods/wireguard-go missing, fetching v0.0.1-beta.5 from upstream"
-            rm -rf localmods/wireguard-go
-            git clone --depth 1 --branch v0.0.1-beta.5 https://github.com/sagernet/wireguard-go.git localmods/wireguard-go
-          fi
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -270,36 +239,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: Ensure warp-plus local module
-        run: |
-          if [ ! -f localmods/warp-plus/go.mod ]; then
-            echo "localmods/warp-plus missing, fetching v1.2.4 from upstream"
-            rm -rf localmods/warp-plus
-            git clone --depth 1 --branch v1.2.4 https://github.com/bepass-org/warp-plus.git localmods/warp-plus
-          fi
-      - name: Ensure ray2sing local module
-        run: |
-          if [ ! -f localmods/ray2sing/go.mod ]; then
-            echo "localmods/ray2sing missing, fetching c5cf020d501f from upstream"
-            rm -rf localmods/ray2sing
-            git clone https://github.com/hiddify/ray2sing.git localmods/ray2sing
-            cd localmods/ray2sing
-            git checkout c5cf020d501f
-          fi
-      - name: Ensure xray-core local module
-        run: |
-          if [ ! -f localmods/xray-core/go.mod ]; then
-            echo "localmods/xray-core missing, fetching v1.8.21 from upstream"
-            rm -rf localmods/xray-core
-            git clone --depth 1 --branch v1.8.21 https://github.com/XTLS/Xray-core.git localmods/xray-core
-          fi
-      - name: Ensure wireguard-go local module
-        run: |
-          if [ ! -f localmods/wireguard-go/go.mod ]; then
-            echo "localmods/wireguard-go missing, fetching v0.0.1-beta.5 from upstream"
-            rm -rf localmods/wireguard-go
-            git clone --depth 1 --branch v0.0.1-beta.5 https://github.com/sagernet/wireguard-go.git localmods/wireguard-go
-          fi
       - name: Prepare
         id: prepare
         run: |

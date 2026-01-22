@@ -703,55 +703,19 @@ func setRoutingOptions(options *option.Options, opt *CoreOptions) {
 	if opt.BlockAds {
 		rulesets = append(rulesets, option.RuleSet{
 			Type:   C.RuleSetTypeRemote,
-			Tag:    "geosite-ads",
+			Tag:    "AdGuard-DNS-Filter",
 			Format: C.RuleSetFormatBinary,
 			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/hiddify/hiddify-geo/rule-set/block/geosite-category-ads-all.srs",
+				URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/filter.txt.srs",
 				UpdateInterval: option.Duration(5 * time.Hour * 24),
 			},
 		})
 		rulesets = append(rulesets, option.RuleSet{
 			Type:   C.RuleSetTypeRemote,
-			Tag:    "geosite-malware",
+			Tag:    "GFWList",
 			Format: C.RuleSetFormatBinary,
 			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/hiddify/hiddify-geo/rule-set/block/geosite-malware.srs",
-				UpdateInterval: option.Duration(5 * time.Hour * 24),
-			},
-		})
-		rulesets = append(rulesets, option.RuleSet{
-			Type:   C.RuleSetTypeRemote,
-			Tag:    "geosite-phishing",
-			Format: C.RuleSetFormatBinary,
-			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/hiddify/hiddify-geo/rule-set/block/geosite-phishing.srs",
-				UpdateInterval: option.Duration(5 * time.Hour * 24),
-			},
-		})
-		rulesets = append(rulesets, option.RuleSet{
-			Type:   C.RuleSetTypeRemote,
-			Tag:    "geosite-cryptominers",
-			Format: C.RuleSetFormatBinary,
-			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/hiddify/hiddify-geo/rule-set/block/geosite-cryptominers.srs",
-				UpdateInterval: option.Duration(5 * time.Hour * 24),
-			},
-		})
-		rulesets = append(rulesets, option.RuleSet{
-			Type:   C.RuleSetTypeRemote,
-			Tag:    "geoip-phishing",
-			Format: C.RuleSetFormatBinary,
-			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/hiddify/hiddify-geo/rule-set/block/geoip-phishing.srs",
-				UpdateInterval: option.Duration(5 * time.Hour * 24),
-			},
-		})
-		rulesets = append(rulesets, option.RuleSet{
-			Type:   C.RuleSetTypeRemote,
-			Tag:    "geoip-malware",
-			Format: C.RuleSetFormatBinary,
-			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/hiddify/hiddify-geo/rule-set/block/geoip-malware.srs",
+				URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/gfwlist.txt.srs",
 				UpdateInterval: option.Duration(5 * time.Hour * 24),
 			},
 		})
@@ -760,22 +724,14 @@ func setRoutingOptions(options *option.Options, opt *CoreOptions) {
 			Type: C.RuleTypeDefault,
 			DefaultOptions: option.DefaultRule{
 				RuleSet: []string{
-					"geosite-ads",
-					"geosite-malware",
-					"geosite-phishing",
-					"geosite-cryptominers",
-					"geoip-malware",
-					"geoip-phishing",
+					"AdGuard-DNS-Filter",
 				},
 				Outbound: OutboundBlockTag,
 			},
 		})
 		dnsRules = append(dnsRules, option.DefaultDNSRule{
 			RuleSet: []string{
-				"geosite-ads",
-				"geosite-malware",
-				"geosite-phishing",
-				"geosite-cryptominers",
+				"AdGuard-DNS-Filter",
 			},
 			Server: DNSBlockTag,
 			//		DisableCache: true,
@@ -794,43 +750,108 @@ func setRoutingOptions(options *option.Options, opt *CoreOptions) {
 				Outbound:     OutboundDirectTag,
 			},
 		})
-		dnsRules = append(dnsRules, option.DefaultDNSRule{
-			RuleSet: []string{
-				// "geoip-" + opt.Region,
-				"geosite-" + opt.Region,
-			},
-			Server: DNSDirectTag,
-		})
-
-		rulesets = append(rulesets, option.RuleSet{
-			Type:   C.RuleSetTypeRemote,
-			Tag:    "geoip-" + opt.Region,
-			Format: C.RuleSetFormatBinary,
-			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/hiddify/hiddify-geo/rule-set/country/geoip-" + opt.Region + ".srs",
-				UpdateInterval: option.Duration(5 * time.Hour * 24),
-			},
-		})
-		rulesets = append(rulesets, option.RuleSet{
-			Type:   C.RuleSetTypeRemote,
-			Tag:    "geosite-" + opt.Region,
-			Format: C.RuleSetFormatBinary,
-			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/hiddify/hiddify-geo/rule-set/country/geosite-" + opt.Region + ".srs",
-				UpdateInterval: option.Duration(5 * time.Hour * 24),
-			},
-		})
-
-		routeRules = append(routeRules, option.Rule{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultRule{
+		if strings.EqualFold(opt.Region, "cn") {
+			dnsRules = append(dnsRules, option.DefaultDNSRule{
 				RuleSet: []string{
-					"geoip-" + opt.Region,
-					"geosite-" + opt.Region,
+					"GeoSite-CN",
+					"GeoSite-Apple-CN",
+					"GeoSite-Google-CN",
 				},
-				Outbound: OutboundDirectTag,
-			},
-		})
+				Server: DNSDirectTag,
+			})
+
+			rulesets = append(rulesets,
+				option.RuleSet{
+					Type:   C.RuleSetTypeRemote,
+					Tag:    "GeoSite-CN",
+					Format: C.RuleSetFormatBinary,
+					RemoteOptions: option.RemoteRuleSet{
+						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/accelerated-domains.china.conf.srs",
+						UpdateInterval: option.Duration(5 * time.Hour * 24),
+					},
+				},
+				option.RuleSet{
+					Type:   C.RuleSetTypeRemote,
+					Tag:    "GeoSite-Apple-CN",
+					Format: C.RuleSetFormatBinary,
+					RemoteOptions: option.RemoteRuleSet{
+						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/apple.china.conf.srs",
+						UpdateInterval: option.Duration(5 * time.Hour * 24),
+					},
+				},
+				option.RuleSet{
+					Type:   C.RuleSetTypeRemote,
+					Tag:    "GeoSite-Google-CN",
+					Format: C.RuleSetFormatBinary,
+					RemoteOptions: option.RemoteRuleSet{
+						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/google.china.conf.srs",
+						UpdateInterval: option.Duration(5 * time.Hour * 24),
+					},
+				},
+				option.RuleSet{
+					Type:   C.RuleSetTypeRemote,
+					Tag:    "GeoIP-APNIC-CN-IPv4",
+					Format: C.RuleSetFormatBinary,
+					RemoteOptions: option.RemoteRuleSet{
+						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/apnic-cn-ipv4.srs",
+						UpdateInterval: option.Duration(5 * time.Hour * 24),
+					},
+				},
+				option.RuleSet{
+					Type:   C.RuleSetTypeRemote,
+					Tag:    "GeoIP-APNIC-CN-IPv6",
+					Format: C.RuleSetFormatBinary,
+					RemoteOptions: option.RemoteRuleSet{
+						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/apnic-cn-ipv6.srs",
+						UpdateInterval: option.Duration(5 * time.Hour * 24),
+					},
+				},
+				option.RuleSet{
+					Type:   C.RuleSetTypeRemote,
+					Tag:    "GeoIP-MaxMind-CN-IPv4",
+					Format: C.RuleSetFormatBinary,
+					RemoteOptions: option.RemoteRuleSet{
+						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/maxmind-cn-ipv4.srs",
+						UpdateInterval: option.Duration(5 * time.Hour * 24),
+					},
+				},
+				option.RuleSet{
+					Type:   C.RuleSetTypeRemote,
+					Tag:    "GeoIP-MaxMind-CN-IPv6",
+					Format: C.RuleSetFormatBinary,
+					RemoteOptions: option.RemoteRuleSet{
+						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/maxmind-cn-ipv6.srs",
+						UpdateInterval: option.Duration(5 * time.Hour * 24),
+					},
+				},
+				option.RuleSet{
+					Type:   C.RuleSetTypeRemote,
+					Tag:    "GeoIP-ChnRoutes2-CN-IPv4",
+					Format: C.RuleSetFormatBinary,
+					RemoteOptions: option.RemoteRuleSet{
+						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/chnroutes.txt.srs",
+						UpdateInterval: option.Duration(5 * time.Hour * 24),
+					},
+				},
+			)
+
+			routeRules = append(routeRules, option.Rule{
+				Type: C.RuleTypeDefault,
+				DefaultOptions: option.DefaultRule{
+					RuleSet: []string{
+						"GeoSite-CN",
+						"GeoSite-Apple-CN",
+						"GeoSite-Google-CN",
+						"GeoIP-APNIC-CN-IPv4",
+						"GeoIP-APNIC-CN-IPv6",
+						"GeoIP-MaxMind-CN-IPv4",
+						"GeoIP-MaxMind-CN-IPv6",
+						"GeoIP-ChnRoutes2-CN-IPv4",
+					},
+					Outbound: OutboundDirectTag,
+				},
+			})
+		}
 	}
 	if opt.RouteOptions.BlockQuic {
 		routeRules = append(routeRules, option.Rule{
