@@ -11,3 +11,7 @@ data
 node_modules
 *.db
 *.json
+
+# Allow root npm metadata for CI caching/install
+!/package.json
+!/package-lock.json
