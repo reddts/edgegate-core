@@ -117,12 +117,20 @@ func (s *CoreRPCServer) MainOutboundsInfo(req *hcommon.Empty, stream Core_MainOu
 }
 
 func allProxiesInfoStream(stream outboundStream, onlyMain bool) error {
-	urltestch, done, err := static.Box.UrlTestHistory().Observer().Subscribe()
-	defer static.Box.UrlTestHistory().Observer().UnSubscribe(urltestch)
+	if static.Box == nil {
+		return fmt.Errorf("core service is not started")
+	}
+
+	urltestObserver := static.Box.UrlTestHistory().Observer()
+	urltestch, done, err := urltestObserver.Subscribe()
+	defer urltestObserver.UnSubscribe(urltestch)
 	if err != nil {
 		return err
 	}
-	stream.Send(GetAllProxiesInfo(onlyMain))
+
+	if info := GetAllProxiesInfo(onlyMain); info != nil {
+		stream.Send(info)
+	}
 	for {
 		select {
 		case <-stream.Context().Done():

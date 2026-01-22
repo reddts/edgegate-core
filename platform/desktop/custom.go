@@ -10,6 +10,7 @@ import "C"
 import (
 	// "os"
 	// "os/signal"
+	"os"
 	"runtime"
 	// "syscall"
 	"unsafe"
@@ -80,6 +81,16 @@ func setup(baseDir *C.char, workingDir *C.char, tempDir *C.char, mode C.int, lis
 	// // Ensure signals are initialized
 	// C.init_signals()
 
+	// 若调用方未显式传入 gRPC 监听地址，则使用环境变量或默认端口，避免客户端端口不一致导致连接被拒绝。
+	listenAddr := C.GoString(listen)
+	if listenAddr == "" {
+		// 使用通用环境变量名，避免依赖产品名
+		listenAddr = os.Getenv("CORE_GRPC_ADDR")
+	}
+	if listenAddr == "" {
+		listenAddr = "127.0.0.1:27820"
+	}
+
 	params := hcore.SetupRequest{
 		BasePath:          C.GoString(baseDir),
 		WorkingDir:        C.GoString(workingDir),
@@ -87,7 +98,7 @@ func setup(baseDir *C.char, workingDir *C.char, tempDir *C.char, mode C.int, lis
 		FlutterStatusPort: int64(statusPort),
 		Debug:             bool(debug),
 		Mode:              hcore.SetupMode(mode),
-		Listen:            C.GoString(listen),
+		Listen:            listenAddr,
 		Secret:            C.GoString(secret),
 	}
 	err := hcore.Setup(&params, nil)
