@@ -14,7 +14,7 @@
 - 其他子命令可查看：`EdgegateCli --help`
 
 ## 配置与数据
-- 主配置可通过 `--config` 指定；若提供 `edgegate.json`（或自定义 JSON），通过 `-d`/`--hiddify` 传入。
+- 主配置可通过 `--config` 指定；若提供 `edgegate.json`（或自定义 JSON），通过 `-d` 传入。
 - 默认配置结构定义见 `v2/config`，序列化与解析逻辑在 `v2/config/parser.go` 等文件。
 
 ## 扩展（Extension）接口
