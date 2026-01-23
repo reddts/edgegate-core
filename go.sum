@@ -455,8 +455,8 @@ github.com/quic-go/quic-go v0.50.0/go.mod h1:Vim6OmUvlYdwBhXP9ZVrtGmCMWa3wEqhq3N
 github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a/go.mod h1:bCqnVzQkZxMG4s8nGwiZ5l3QUCyqpo9Y+/ZMZ9VjZe4=
 github.com/reddts/ray2sing v0.0.0-20260122030917-2e663e9800eb h1:S/kfkvs4FCEss97eJ9GUizqG6+mofBUpMUstJ51g76Y=
 github.com/reddts/ray2sing v0.0.0-20260122030917-2e663e9800eb/go.mod h1:rNQ7l+j/6TfALG2y1rq7yExAwpoa4ptRgMM8+yUd39I=
-github.com/reddts/sing-box v0.0.0-20260122023630-53096e90a31c h1:NWGgPtBK7L9lcVp/9r/pX8el8dm27ViczILvEHqy5jQ=
-github.com/reddts/sing-box v0.0.0-20260122023630-53096e90a31c/go.mod h1:P2Jl+D3230kPWANXuUpITOUacVTlx4YXCFBXSdzBOsk=
+github.com/reddts/sing-box v0.0.0-20260122051647-b9fb0d458245 h1:M1rOYnBXWq8svBUR+ImYK8ayMOnE0kBYOzXM6k0IH6E=
+github.com/reddts/sing-box v0.0.0-20260122051647-b9fb0d458245/go.mod h1:i1CooJE8OZpZGQlVcKp+V6PkMPSqQsjNt3873szesQ4=
 github.com/reddts/warp-plus v0.0.0-20260122024325-982cc38af867 h1:ppo3vDz9ayIy/5BAbHY6SSkpGMTC8DaTE/W8GVVoFy0=
 github.com/reddts/warp-plus v0.0.0-20260122024325-982cc38af867/go.mod h1:uSRUbr1CcvFrEV69FTvuJFwpzEmwO8N4knb6+Zq3Ys4=
 github.com/reddts/wireguard-go v0.0.0-20260122024552-0cc2e9dbf37b h1:Rz+G/Zi9OY0YZeBuxjLQ1cK6v7hHXmtFnxILySZMaZ0=

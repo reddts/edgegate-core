@@ -559,6 +559,22 @@ func setRoutingOptions(options *option.Options, opt *CoreOptions) {
 	routeRules := []option.Rule{}
 	rulesets := []option.RuleSet{}
 
+	mode := "proxy"
+	switch {
+	case opt.SetSystemProxy:
+		mode = "systemProxy"
+	case opt.EnableTunService:
+		mode = "tunService"
+	case opt.EnableTun:
+		mode = "tun"
+	}
+	isCNLine := strings.EqualFold(opt.Region, "cn")
+	finalOutbound := OutboundMainProxyTag
+	if mode != "systemProxy" && isCNLine {
+		// CN 线路：默认直连，CN 规则命中走代理
+		finalOutbound = OutboundDirectTag
+	}
+
 	if opt.EnableTun && runtime.GOOS == "android" {
 		// routeRules = append(
 		// 	routeRules,
@@ -702,21 +718,19 @@ func setRoutingOptions(options *option.Options, opt *CoreOptions) {
 
 	if opt.BlockAds {
 		rulesets = append(rulesets, option.RuleSet{
-			Type:   C.RuleSetTypeRemote,
+			Type:   C.RuleSetTypeLocal,
 			Tag:    "AdGuard-DNS-Filter",
 			Format: C.RuleSetFormatBinary,
-			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/filter.txt.srs",
-				UpdateInterval: option.Duration(5 * time.Hour * 24),
+			LocalOptions: option.LocalRuleSet{
+				Path: "rule-set/filter.txt.srs",
 			},
 		})
 		rulesets = append(rulesets, option.RuleSet{
-			Type:   C.RuleSetTypeRemote,
+			Type:   C.RuleSetTypeLocal,
 			Tag:    "GFWList",
 			Format: C.RuleSetFormatBinary,
-			RemoteOptions: option.RemoteRuleSet{
-				URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/gfwlist.txt.srs",
-				UpdateInterval: option.Duration(5 * time.Hour * 24),
+			LocalOptions: option.LocalRuleSet{
+				Path: "rule-set/gfwlist.txt.srs",
 			},
 		})
 
@@ -738,119 +752,125 @@ func setRoutingOptions(options *option.Options, opt *CoreOptions) {
 		})
 
 	}
-	if opt.Region != "other" {
-		dnsRules = append(dnsRules, option.DefaultDNSRule{
-			DomainSuffix: []string{"." + opt.Region},
-			Server:       DNSDirectTag,
-		})
-		routeRules = append(routeRules, option.Rule{
-			Type: C.RuleTypeDefault,
-			DefaultOptions: option.DefaultRule{
-				DomainSuffix: []string{"." + opt.Region},
-				Outbound:     OutboundDirectTag,
+	if mode != "systemProxy" {
+		cnRuleSets := []option.RuleSet{
+			{
+				Type:   C.RuleSetTypeLocal,
+				Tag:    "GeoSite-CN",
+				Format: C.RuleSetFormatBinary,
+				LocalOptions: option.LocalRuleSet{
+					Path: "rule-set/accelerated-domains.china.conf.srs",
+				},
 			},
-		})
-		if strings.EqualFold(opt.Region, "cn") {
+			{
+				Type:   C.RuleSetTypeLocal,
+				Tag:    "GeoSite-Apple-CN",
+				Format: C.RuleSetFormatBinary,
+				LocalOptions: option.LocalRuleSet{
+					Path: "rule-set/apple.china.conf.srs",
+				},
+			},
+			{
+				Type:   C.RuleSetTypeLocal,
+				Tag:    "GeoSite-Google-CN",
+				Format: C.RuleSetFormatBinary,
+				LocalOptions: option.LocalRuleSet{
+					Path: "rule-set/google.china.conf.srs",
+				},
+			},
+			{
+				Type:   C.RuleSetTypeLocal,
+				Tag:    "GeoIP-APNIC-CN-IPv4",
+				Format: C.RuleSetFormatBinary,
+				LocalOptions: option.LocalRuleSet{
+					Path: "rule-set/apnic-cn-ipv4.srs",
+				},
+			},
+			{
+				Type:   C.RuleSetTypeLocal,
+				Tag:    "GeoIP-APNIC-CN-IPv6",
+				Format: C.RuleSetFormatBinary,
+				LocalOptions: option.LocalRuleSet{
+					Path: "rule-set/apnic-cn-ipv6.srs",
+				},
+			},
+			{
+				Type:   C.RuleSetTypeLocal,
+				Tag:    "GeoIP-MaxMind-CN-IPv4",
+				Format: C.RuleSetFormatBinary,
+				LocalOptions: option.LocalRuleSet{
+					Path: "rule-set/maxmind-cn-ipv4.srs",
+				},
+			},
+			{
+				Type:   C.RuleSetTypeLocal,
+				Tag:    "GeoIP-MaxMind-CN-IPv6",
+				Format: C.RuleSetFormatBinary,
+				LocalOptions: option.LocalRuleSet{
+					Path: "rule-set/maxmind-cn-ipv6.srs",
+				},
+			},
+			{
+				Type:   C.RuleSetTypeLocal,
+				Tag:    "GeoIP-ChnRoutes2-CN-IPv4",
+				Format: C.RuleSetFormatBinary,
+				LocalOptions: option.LocalRuleSet{
+					Path: "rule-set/chnroutes.txt.srs",
+				},
+			},
+		}
+		rulesets = append(rulesets, cnRuleSets...)
+
+		cnRuleTags := []string{
+			"GeoSite-CN",
+			"GeoSite-Apple-CN",
+			"GeoSite-Google-CN",
+			"GeoIP-APNIC-CN-IPv4",
+			"GeoIP-APNIC-CN-IPv6",
+			"GeoIP-MaxMind-CN-IPv4",
+			"GeoIP-MaxMind-CN-IPv6",
+			"GeoIP-ChnRoutes2-CN-IPv4",
+		}
+
+		if isCNLine {
+			// CN 线路：命中 CN 规则走代理，未命中走直连。
 			dnsRules = append(dnsRules, option.DefaultDNSRule{
-				RuleSet: []string{
-					"GeoSite-CN",
-					"GeoSite-Apple-CN",
-					"GeoSite-Google-CN",
-				},
-				Server: DNSDirectTag,
+				RuleSet: cnRuleTags[:3],
+				Server:  DNSRemoteTag,
 			})
-
-			rulesets = append(rulesets,
-				option.RuleSet{
-					Type:   C.RuleSetTypeRemote,
-					Tag:    "GeoSite-CN",
-					Format: C.RuleSetFormatBinary,
-					RemoteOptions: option.RemoteRuleSet{
-						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/accelerated-domains.china.conf.srs",
-						UpdateInterval: option.Duration(5 * time.Hour * 24),
-					},
-				},
-				option.RuleSet{
-					Type:   C.RuleSetTypeRemote,
-					Tag:    "GeoSite-Apple-CN",
-					Format: C.RuleSetFormatBinary,
-					RemoteOptions: option.RemoteRuleSet{
-						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/apple.china.conf.srs",
-						UpdateInterval: option.Duration(5 * time.Hour * 24),
-					},
-				},
-				option.RuleSet{
-					Type:   C.RuleSetTypeRemote,
-					Tag:    "GeoSite-Google-CN",
-					Format: C.RuleSetFormatBinary,
-					RemoteOptions: option.RemoteRuleSet{
-						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/google.china.conf.srs",
-						UpdateInterval: option.Duration(5 * time.Hour * 24),
-					},
-				},
-				option.RuleSet{
-					Type:   C.RuleSetTypeRemote,
-					Tag:    "GeoIP-APNIC-CN-IPv4",
-					Format: C.RuleSetFormatBinary,
-					RemoteOptions: option.RemoteRuleSet{
-						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/apnic-cn-ipv4.srs",
-						UpdateInterval: option.Duration(5 * time.Hour * 24),
-					},
-				},
-				option.RuleSet{
-					Type:   C.RuleSetTypeRemote,
-					Tag:    "GeoIP-APNIC-CN-IPv6",
-					Format: C.RuleSetFormatBinary,
-					RemoteOptions: option.RemoteRuleSet{
-						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/apnic-cn-ipv6.srs",
-						UpdateInterval: option.Duration(5 * time.Hour * 24),
-					},
-				},
-				option.RuleSet{
-					Type:   C.RuleSetTypeRemote,
-					Tag:    "GeoIP-MaxMind-CN-IPv4",
-					Format: C.RuleSetFormatBinary,
-					RemoteOptions: option.RemoteRuleSet{
-						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/maxmind-cn-ipv4.srs",
-						UpdateInterval: option.Duration(5 * time.Hour * 24),
-					},
-				},
-				option.RuleSet{
-					Type:   C.RuleSetTypeRemote,
-					Tag:    "GeoIP-MaxMind-CN-IPv6",
-					Format: C.RuleSetFormatBinary,
-					RemoteOptions: option.RemoteRuleSet{
-						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/maxmind-cn-ipv6.srs",
-						UpdateInterval: option.Duration(5 * time.Hour * 24),
-					},
-				},
-				option.RuleSet{
-					Type:   C.RuleSetTypeRemote,
-					Tag:    "GeoIP-ChnRoutes2-CN-IPv4",
-					Format: C.RuleSetFormatBinary,
-					RemoteOptions: option.RemoteRuleSet{
-						URL:            "https://raw.githubusercontent.com/Dreista/sing-box-rule-set-cn/rule-set/chnroutes.txt.srs",
-						UpdateInterval: option.Duration(5 * time.Hour * 24),
-					},
-				},
-			)
-
 			routeRules = append(routeRules, option.Rule{
 				Type: C.RuleTypeDefault,
 				DefaultOptions: option.DefaultRule{
-					RuleSet: []string{
-						"GeoSite-CN",
-						"GeoSite-Apple-CN",
-						"GeoSite-Google-CN",
-						"GeoIP-APNIC-CN-IPv4",
-						"GeoIP-APNIC-CN-IPv6",
-						"GeoIP-MaxMind-CN-IPv4",
-						"GeoIP-MaxMind-CN-IPv6",
-						"GeoIP-ChnRoutes2-CN-IPv4",
-					},
+					RuleSet:  cnRuleTags,
+					Outbound: OutboundMainProxyTag,
+				},
+			})
+		} else {
+			// 非 CN 线路：命中 CN 规则走直连，其余走代理。
+			dnsRules = append(dnsRules, option.DefaultDNSRule{
+				RuleSet: cnRuleTags[:3],
+				Server:  DNSDirectTag,
+			})
+			routeRules = append(routeRules, option.Rule{
+				Type: C.RuleTypeDefault,
+				DefaultOptions: option.DefaultRule{
+					RuleSet:  cnRuleTags,
 					Outbound: OutboundDirectTag,
 				},
 			})
+			if opt.Region != "other" {
+				dnsRules = append(dnsRules, option.DefaultDNSRule{
+					DomainSuffix: []string{"." + opt.Region},
+					Server:       DNSDirectTag,
+				})
+				routeRules = append(routeRules, option.Rule{
+					Type: C.RuleTypeDefault,
+					DefaultOptions: option.DefaultRule{
+						DomainSuffix: []string{"." + opt.Region},
+						Outbound:     OutboundDirectTag,
+					},
+				})
+			}
 		}
 	}
 	if opt.RouteOptions.BlockQuic {
@@ -865,7 +885,7 @@ func setRoutingOptions(options *option.Options, opt *CoreOptions) {
 	}
 	options.Route = &option.RouteOptions{
 		Rules:               routeRules,
-		Final:               OutboundMainProxyTag,
+		Final:               finalOutbound,
 		AutoDetectInterface: true,
 		OverrideAndroidVPN:  true,
 		RuleSet:             rulesets,
