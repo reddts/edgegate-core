@@ -71,6 +71,7 @@ jobs:
       GOAMD64: ${{ matrix.job.goamd64 }}
       GOARM: ${{ matrix.job.goarm }}
       GOMIPS: ${{ matrix.job.gomips }}
+      ANDROID_NDK_VERSION: "26.1.10909125"
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -107,7 +108,7 @@ jobs:
         uses: nttld/setup-ndk@v1.4.0
         id: setup-ndk
         with:
-          ndk-version: r26b
+          ndk-version: r26d
           add-to-path: true
           local-cache: false
           link-to-sdk: true
