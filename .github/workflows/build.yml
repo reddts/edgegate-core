@@ -266,9 +266,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           platforms: ${{ matrix.platform }}
-          # Use repo root as context so platform/docker artifacts are available
-          context: .
-          file: platform/docker/Dockerfile
+          # Use docker folder as context so edgegate.sh is in build context
+          context: platform/docker
+          file: Dockerfile
           build-args: |
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
           labels: ${{ steps.meta.outputs.labels }}
