@@ -46,7 +46,7 @@ const libName = "edgegate-core"
 
 func init() {
 	sharedFlags = append(sharedFlags, "-trimpath")
-	sharedFlags = append(sharedFlags, "-ldflags", "-s -w")
+	sharedFlags = append(sharedFlags, "-ldflags", "-s -w -linkmode=external -extldflags=-Wl,-z,max-page-size=16384")
 	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_ech", "with_utls", "with_clash_api", "with_grpc")
 	iosTags = append(iosTags, "with_dhcp", "with_low_memory", "with_conntrack")
 }

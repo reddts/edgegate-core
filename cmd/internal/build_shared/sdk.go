@@ -1,6 +1,7 @@
 package build_shared
 
 import (
+	"fmt"
 	"go/build"
 	"os"
 	"path/filepath"
@@ -53,7 +54,7 @@ func findNDK() bool {
 	if version := strings.TrimSpace(os.Getenv("ANDROID_NDK_VERSION")); version != "" {
 		ndkPath := androidSDKPath + "/ndk/" + version
 		if !rw.FileExists(ndkPath) {
-			log.Fatalf("android NDK %s not found under %s", version, androidSDKPath+"/ndk")
+			log.Fatal(fmt.Sprintf("android NDK %s not found under %s", version, androidSDKPath+"/ndk"))
 		}
 		if !ensureMinNDKVersion(version) {
 			return false
@@ -104,10 +105,10 @@ func findNDK() bool {
 func ensureMinNDKVersion(versionName string) bool {
 	major, ok := parseNDKMajor(versionName)
 	if !ok {
-		log.Fatalf("unable to parse android NDK version: %s", versionName)
+		log.Fatal(fmt.Sprintf("unable to parse android NDK version: %s", versionName))
 	}
 	if major < minAndroidNDKMajor {
-		log.Fatalf("android NDK %s is too old; require >= %d", versionName, minAndroidNDKMajor)
+		log.Fatal(fmt.Sprintf("android NDK %s is too old; require >= %d", versionName, minAndroidNDKMajor))
 	}
 	return true
 }

@@ -13,7 +13,8 @@ endif
 
 TAGS=with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api,with_grpc
 IOS_ADD_TAGS=with_dhcp,with_low_memory,with_conntrack
-GOBUILDLIB=CGO_ENABLED=1 go build -trimpath -tags $(TAGS) -ldflags="-w -s" -buildmode=c-shared
+ANDROID_LDFLAGS=-w -s -linkmode=external -extldflags=-Wl,-z,max-page-size=16384
+GOBUILDLIB=CGO_ENABLED=1 go build -trimpath -tags $(TAGS) -ldflags="$(ANDROID_LDFLAGS)" -buildmode=c-shared
 GOBUILDSRV=CGO_ENABLED=1 go build -ldflags "-s -w" -trimpath -tags $(TAGS)
 
 .PHONY: protos
@@ -41,7 +42,7 @@ headers:
 	go build -buildmode=c-archive -o $(BINDIR)/ ./platform/desktop2
 
 android: lib_install
-	gomobile bind -v -androidapi=21 -javapkg=com.edgegate.core -libname=edgegate-core -tags=$(TAGS) -trimpath -target=android -gcflags "all=-N -l" -o $(BINDIR)/$(LIBNAME).aar github.com/sagernet/sing-box/experimental/libbox ./platform/mobile
+	gomobile bind -v -androidapi=21 -javapkg=com.edgegate.core -libname=edgegate-core -tags=$(TAGS) -trimpath -target=android -ldflags="$(ANDROID_LDFLAGS)" -o $(BINDIR)/$(LIBNAME).aar github.com/sagernet/sing-box/experimental/libbox ./platform/mobile
 
 ios-full: lib_install
 	gomobile bind -v  -target ios,iossimulator,tvos,tvossimulator,macos -libname=edgegate-core -tags=$(TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="-w -s" -o $(BINDIR)/$(PRODUCT_NAME).xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile 
