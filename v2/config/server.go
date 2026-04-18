@@ -39,7 +39,11 @@ func (s *server) GenerateFullConfig(ctx context.Context, in *GenerateConfigReque
 		return nil, err
 	}
 	var options option.Options
-	err = options.UnmarshalJSON(content)
+	normalizedContent, err := NormalizeConfigForLegacySingBox(content)
+	if err != nil {
+		return nil, err
+	}
+	err = options.UnmarshalJSON(normalizedContent)
 	if err != nil {
 		return nil, err
 	}

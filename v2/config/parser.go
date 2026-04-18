@@ -102,8 +102,12 @@ func ParseConfigContent(contentstr string, debug bool, configOpt *CoreOptions, f
 }
 
 func patchConfig(content []byte, name string, configOpt *CoreOptions) ([]byte, error) {
+	normalizedContent, err := NormalizeConfigForLegacySingBox(content)
+	if err != nil {
+		return nil, fmt.Errorf("[SingboxParser] normalize error: %w", err)
+	}
 	options := option.Options{}
-	err := json.Unmarshal(content, &options)
+	err = json.Unmarshal(normalizedContent, &options)
 	if err != nil {
 		return nil, fmt.Errorf("[SingboxParser] unmarshal error: %w", err)
 	}

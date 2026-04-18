@@ -8,6 +8,8 @@ package main
 import "C"
 
 import (
+	"context"
+	"encoding/json"
 	// "os"
 	// "os/signal"
 	"os"
@@ -71,6 +73,23 @@ func emptyOrErrorC(err error) *C.char {
 	str := C.CString(err.Error())
 	defer C.free(unsafe.Pointer(str))
 	return str
+}
+
+func jsonResult(ok bool, errMsg string, data any) *C.char {
+	result := map[string]any{
+		"ok": ok,
+	}
+	if errMsg != "" {
+		result["error"] = errMsg
+	}
+	if data != nil {
+		result["data"] = data
+	}
+	raw, err := json.Marshal(result)
+	if err != nil {
+		return C.CString(`{"ok":false,"error":"marshal result failed"}`)
+	}
+	return C.CString(string(raw))
 }
 
 //export setup
@@ -173,4 +192,122 @@ func closeGrpc(mode C.int) {
 	// defer runtime.UnlockOSThread()
 
 	hcore.Close(hcore.SetupMode(mode))
+}
+
+//export parseConfig
+func parseConfig(configPath *C.char, tempPath *C.char, debug bool) *C.char {
+	resp, err := hcore.Parse(&hcore.ParseRequest{
+		ConfigPath: C.GoString(configPath),
+		TempPath:   C.GoString(tempPath),
+		Debug:      bool(debug),
+	})
+	if err != nil {
+		message := err.Error()
+		if resp != nil && resp.Message != "" {
+			message = resp.Message
+		}
+		return jsonResult(false, message, resp)
+	}
+	return jsonResult(true, "", resp)
+}
+
+//export generateConfig
+func generateConfig(configPath *C.char) *C.char {
+	resp, err := hcore.GenerateConfig(&hcore.GenerateConfigRequest{
+		Path: C.GoString(configPath),
+	})
+	if err != nil {
+		return jsonResult(false, err.Error(), nil)
+	}
+	return jsonResult(true, "", resp)
+}
+
+//export changeCoreSettings
+func changeCoreSettings(coreSettingsJSON *C.char) *C.char {
+	_, err := hcore.ChangeCoreSettings(&hcore.ChangeCoreSettingsRequest{
+		CoreSettingsJson: C.GoString(coreSettingsJSON),
+	})
+	return emptyOrErrorC(err)
+}
+
+//export getCoreInfo
+func getCoreInfo() *C.char {
+	return jsonResult(true, "", hcore.SnapshotCoreInfo())
+}
+
+//export getSystemInfo
+func getSystemInfo() *C.char {
+	info := hcore.SnapshotSystemInfo()
+	if info == nil {
+		return jsonResult(false, "core service is not started", nil)
+	}
+	return jsonResult(true, "", info)
+}
+
+//export getOutboundsInfo
+func getOutboundsInfo(onlyMain bool) *C.char {
+	info := hcore.SnapshotOutbounds(bool(onlyMain))
+	if info == nil {
+		return jsonResult(false, "core service is not started", nil)
+	}
+	return jsonResult(true, "", info)
+}
+
+//export selectOutbound
+func selectOutbound(groupTag *C.char, outboundTag *C.char) *C.char {
+	resp, err := hcore.SelectOutbound(&hcore.SelectOutboundRequest{
+		GroupTag:    C.GoString(groupTag),
+		OutboundTag: C.GoString(outboundTag),
+	})
+	if err != nil {
+		message := err.Error()
+		if resp != nil && resp.Message != "" {
+			message = resp.Message
+		}
+		return jsonResult(false, message, resp)
+	}
+	return jsonResult(true, "", resp)
+}
+
+//export urlTest
+func urlTest(groupTag *C.char) *C.char {
+	resp, err := hcore.UrlTest(&hcore.UrlTestRequest{
+		GroupTag: C.GoString(groupTag),
+	})
+	if err != nil {
+		message := err.Error()
+		if resp != nil && resp.Message != "" {
+			message = resp.Message
+		}
+		return jsonResult(false, message, resp)
+	}
+	return jsonResult(true, "", resp)
+}
+
+//export setSystemProxyEnabled
+func setSystemProxyEnabled(enabled bool) *C.char {
+	resp, err := hcore.SetSystemProxyEnabled(context.Background(), &hcore.SetSystemProxyEnabledRequest{
+		IsEnabled: bool(enabled),
+	})
+	if err != nil {
+		message := err.Error()
+		if resp != nil && resp.Message != "" {
+			message = resp.Message
+		}
+		return jsonResult(false, message, resp)
+	}
+	return jsonResult(true, "", resp)
+}
+
+//export generateWarpConfig
+func generateWarpConfig(licenseKey *C.char, accountID *C.char, accessToken *C.char) *C.char {
+	resp, err := hcore.GenerateWarpConfig(&hcore.GenerateWarpConfigRequest{
+		LicenseKey:  C.GoString(licenseKey),
+		AccountId:   C.GoString(accountID),
+		AccessToken: C.GoString(accessToken),
+	})
+	if err != nil {
+		return jsonResult(false, err.Error(), nil)
+	}
+	return jsonResult(true, "", resp)
 }

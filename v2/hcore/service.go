@@ -158,7 +158,13 @@ func NewService(options option.Options) (*libbox.BoxService, error) {
 
 func readOptions(configContent string) (option.Options, error) {
 	var options option.Options
-	err := options.UnmarshalJSON([]byte(configContent))
+	normalizedContent, err := config.NormalizeConfigForLegacySingBox(
+		[]byte(configContent),
+	)
+	if err != nil {
+		return option.Options{}, E.Cause(err, "normalize config")
+	}
+	err = options.UnmarshalJSON(normalizedContent)
 	if err != nil {
 		return option.Options{}, E.Cause(err, "decode config")
 	}

@@ -227,7 +227,11 @@ func updateConfigInterval(current ConfigResult, coreSettingPath string, configPa
 
 func readConfigBytes(content []byte) (*option.Options, error) {
 	var options option.Options
-	err := options.UnmarshalJSON(content)
+	normalizedContent, err := config.NormalizeConfigForLegacySingBox(content)
+	if err != nil {
+		return nil, err
+	}
+	err = options.UnmarshalJSON(normalizedContent)
 	if err != nil {
 		return nil, err
 	}
