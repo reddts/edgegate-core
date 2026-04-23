@@ -6,9 +6,8 @@ import (
 	"strings"
 	"time"
 
-	hcommon "github.com/reddts/edgegate-core/v2/hcommon"
 	"github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/outbound"
+	protocolgroup "github.com/sagernet/sing-box/protocol/group"
 	"github.com/sagernet/sing/service"
 
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -22,79 +21,66 @@ func GetProxyInfo(detour adapter.Outbound) *OutboundInfo {
 		Tag:  detour.Tag(),
 		Type: detour.Type(),
 	}
-	url_test_history := static.Box.UrlTestHistory().LoadURLTestHistory(adapter.OutboundTag(detour))
-	if url_test_history != nil {
-		out.UrlTestTime = timestamppb.New(url_test_history.Time)
-		out.UrlTestDelay = int32(url_test_history.Delay)
-		if url_test_history.IpInfo != nil {
-			out.Ipinfo = &IpInfo{
-				Ip:          url_test_history.IpInfo.IP,
-				CountryCode: url_test_history.IpInfo.CountryCode,
-				Region:      url_test_history.IpInfo.Region,
-				City:        url_test_history.IpInfo.City,
-				Asn:         int32(url_test_history.IpInfo.ASN),
-				Org:         url_test_history.IpInfo.Org,
-				Latitude:    url_test_history.IpInfo.Latitude,
-				Longitude:   url_test_history.IpInfo.Longitude,
-				PostalCode:  url_test_history.IpInfo.PostalCode,
-			}
-		}
+	urlTestHistory := static.Box.UrlTestHistory().LoadURLTestHistory(detour.Tag())
+	if urlTestHistory != nil {
+		out.UrlTestTime = timestamppb.New(urlTestHistory.Time)
+		out.UrlTestDelay = int32(urlTestHistory.Delay)
 		if _, isGroup := detour.(adapter.OutboundGroup); isGroup {
 			out.IsGroup = true
 		}
-
 	}
 
 	return out
 }
 
-func GetAllProxiesInfo(onlyGroupitems bool) *OutboundGroupList {
+func GetAllProxiesInfo(onlyGroupItems bool) *OutboundGroupList {
 	if static.Box == nil {
 		return nil
 	}
 
 	cacheFile := service.FromContext[adapter.CacheFile](static.Box.Context())
-	outbounds := static.Box.GetInstance().Router().Outbounds()
-	outbounds_converted := make(map[string]*OutboundInfo, 0)
-	var iGroups []adapter.OutboundGroup
+	outbounds := static.Box.GetInstance().Outbound().Outbounds()
+	outboundsConverted := make(map[string]*OutboundInfo, len(outbounds))
+	var outboundGroups []adapter.OutboundGroup
 	for _, it := range outbounds {
-		if group, isGroup := it.(adapter.OutboundGroup); isGroup {
-			iGroups = append(iGroups, group)
+		if outGroup, isGroup := it.(adapter.OutboundGroup); isGroup {
+			outboundGroups = append(outboundGroups, outGroup)
 		}
-
-		outbounds_converted[it.Tag()] = GetProxyInfo(it)
+		outboundsConverted[it.Tag()] = GetProxyInfo(it)
 	}
 
 	var groups OutboundGroupList
-	for _, iGroup := range iGroups {
-		var group OutboundGroup
-		group.Tag = iGroup.Tag()
-		group.Type = iGroup.Type()
-		_, group.Selectable = iGroup.(*outbound.Selector)
-		selectedTag := iGroup.Now()
-		group.Selected = outbounds_converted[selectedTag]
-		outbounds_converted[iGroup.Tag()].GroupSelectedOutbound = group.Selected
+	for _, outboundGroup := range outboundGroups {
+		var groupInfo OutboundGroup
+		groupInfo.Tag = outboundGroup.Tag()
+		groupInfo.Type = outboundGroup.Type()
+		_, groupInfo.Selectable = outboundGroup.(*protocolgroup.Selector)
+		selectedTag := outboundGroup.Now()
+		groupInfo.Selected = outboundsConverted[selectedTag]
+		outboundsConverted[outboundGroup.Tag()].GroupSelectedOutbound = groupInfo.Selected
 		if cacheFile != nil {
-			if isExpand, loaded := cacheFile.LoadGroupExpand(group.Tag); loaded {
-				group.IsExpand = isExpand
+			if isExpand, loaded := cacheFile.LoadGroupExpand(groupInfo.Tag); loaded {
+				groupInfo.IsExpand = isExpand
 			}
 		}
 
-		for _, itemTag := range iGroup.All() {
-			if onlyGroupitems && itemTag != selectedTag {
+		for _, itemTag := range outboundGroup.All() {
+			if onlyGroupItems && itemTag != selectedTag {
 				continue
 			}
-			pinfo := outbounds_converted[itemTag]
+			pinfo := outboundsConverted[itemTag]
+			if pinfo == nil {
+				continue
+			}
 			pinfo.IsSelected = itemTag == selectedTag
-
-			group.Items = append(group.Items, pinfo)
+			groupInfo.Items = append(groupInfo.Items, pinfo)
 			pinfo.IsVisible = !strings.Contains(itemTag, "§hide§")
 			pinfo.TagDisplay = TrimTagName(itemTag)
 		}
-		if len(group.Items) == 0 {
+		if len(groupInfo.Items) == 0 {
 			continue
 		}
-		groups.Items = append(groups.Items, &group)
+		groups.Items = append(groups.Items, &groupInfo)
 	}
 
 	return &groups
@@ -109,46 +95,24 @@ type outboundStream interface {
 	Context() context.Context
 }
 
-func (s *CoreRPCServer) OutboundsInfo(req *hcommon.Empty, stream Core_OutboundsInfoServer) error {
-	return allProxiesInfoStream(stream, false)
-}
-
-func (s *CoreRPCServer) MainOutboundsInfo(req *hcommon.Empty, stream Core_MainOutboundsInfoServer) error {
-	return allProxiesInfoStream(stream, true)
-}
-
 func allProxiesInfoStream(stream outboundStream, onlyMain bool) error {
 	if static.Box == nil {
 		return fmt.Errorf("core service is not started")
 	}
 
-	urltestObserver := static.Box.UrlTestHistory().Observer()
-	urltestch, done, err := urltestObserver.Subscribe()
-	defer urltestObserver.UnSubscribe(urltestch)
-	if err != nil {
-		return err
-	}
-
 	if info := GetAllProxiesInfo(onlyMain); info != nil {
 		stream.Send(info)
 	}
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-stream.Context().Done():
 			return nil
-		case <-done:
-			return nil
-		case <-urltestch:
-		debounce:
-			for {
-				select {
-				case <-urltestch:
-				default:
-					break debounce
-				}
+		case <-ticker.C:
+			if info := GetAllProxiesInfo(onlyMain); info != nil {
+				stream.Send(info)
 			}
-			stream.Send(GetAllProxiesInfo(onlyMain))
-		case <-time.After(500 * time.Millisecond):
 		}
 	}
 }

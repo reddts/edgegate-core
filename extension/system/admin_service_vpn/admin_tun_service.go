@@ -30,10 +30,22 @@ func (b *AdminServiceExtension) OnMainServicePreStart(singconfig *option.Options
 
 	for _, inb := range singconfig.Inbounds {
 		if inb.Type == C.TypeTun {
-			b.tunInboundOptions = &inb.TunOptions
+			switch tunOptions := inb.Options.(type) {
+			case *option.TunInboundOptions:
+				b.tunInboundOptions = tunOptions
+			case option.TunInboundOptions:
+				copied := tunOptions
+				b.tunInboundOptions = &copied
+			}
 		} else {
 			if inb.Type == C.TypeSOCKS {
-				b.socksOptions = &inb.SocksOptions
+				switch socksOptions := inb.Options.(type) {
+				case *option.SocksInboundOptions:
+					b.socksOptions = socksOptions
+				case option.SocksInboundOptions:
+					copied := socksOptions
+					b.socksOptions = &copied
+				}
 			}
 			newInbounds = append(newInbounds, inb)
 		}

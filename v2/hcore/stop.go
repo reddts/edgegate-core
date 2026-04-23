@@ -32,6 +32,7 @@ func Stop() (coreResponse *CoreInfoResponse, err error) {
 	}
 	err = common.Close(static.Box)
 	static.Box = nil
+	refreshFFISnapshotCaches()
 	if err != nil {
 		return errorWrapper(MessageType_UNEXPECTED_ERROR, err)
 	}

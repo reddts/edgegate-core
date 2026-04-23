@@ -1,3 +1,6 @@
+//go:build legacy_grpc_runtime
+// +build legacy_grpc_runtime
+
 package tunnelservice
 
 import (
@@ -7,7 +10,6 @@ import (
 	"time"
 
 	C "github.com/sagernet/sing-box/constant"
-	"github.com/sagernet/sing-box/experimental/libbox"
 	"github.com/sagernet/sing-box/option"
 
 	hcommon "github.com/reddts/edgegate-core/v2/hcommon"
@@ -16,7 +18,7 @@ import (
 
 type TunnelService struct {
 	UnimplementedTunnelServiceServer
-	box *libbox.BoxService
+	box *hcore.BoxService
 }
 
 func (s *TunnelService) Start(ctx context.Context, in *TunnelStartRequest) (*TunnelResponse, error) {
@@ -37,6 +39,7 @@ func (s *TunnelService) Start(ctx context.Context, in *TunnelStartRequest) (*Tun
 			Message: err.Error(),
 		}, err
 	}
+	s.box = instance
 
 	return &TunnelResponse{
 		Message: "OK",
@@ -54,7 +57,7 @@ func makeTunnelConfig(in *TunnelStartRequest) option.Options {
 			{
 				Type: C.TypeTun,
 				Tag:  "tun-in",
-				TunOptions: option.TunInboundOptions{
+				Options: &option.TunInboundOptions{
 					EndpointIndependentNat: in.EndpointIndependentNat,
 					StrictRoute:            in.StrictRoute,
 					AutoRoute:              true,
@@ -68,7 +71,7 @@ func makeTunnelConfig(in *TunnelStartRequest) option.Options {
 			{
 				Type: C.TypeSOCKS,
 				Tag:  "socks-out",
-				SocksOptions: option.SocksOutboundOptions{
+				Options: &option.SOCKSOutboundOptions{
 					ServerOptions: option.ServerOptions{
 						Server:     "127.0.0.1",
 						ServerPort: uint16(in.ServerPort),
@@ -88,13 +91,20 @@ func makeTunnelConfig(in *TunnelStartRequest) option.Options {
 			Rules: []option.Rule{
 				{
 					DefaultOptions: option.DefaultRule{
-						ProcessName: []string{
-							"Edgegate.exe",
-							"Edgegate",
-							"EdgegateCli",
-							"EdgegateCli.exe",
+						RawDefaultRule: option.RawDefaultRule{
+							ProcessName: []string{
+								"Edgegate.exe",
+								"Edgegate",
+								"EdgegateCli",
+								"EdgegateCli.exe",
+							},
 						},
-						Outbound: "direct-out",
+						RuleAction: option.RuleAction{
+							Action: C.RuleActionTypeRoute,
+							RouteOptions: option.RouteActionOptions{
+								Outbound: "direct-out",
+							},
+						},
 					},
 				},
 			},

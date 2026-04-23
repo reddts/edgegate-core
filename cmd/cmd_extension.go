@@ -1,3 +1,6 @@
+//go:build legacy_grpc_extension
+// +build legacy_grpc_extension
+
 package cmd
 
 import (

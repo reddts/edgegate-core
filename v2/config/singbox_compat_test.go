@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"runtime"
 	"testing"
 )
 
@@ -173,5 +174,34 @@ func TestNormalizeConfigForLegacySingBox_RouteUnknownFields(t *testing.T) {
 	}
 	if routeMap["default_interface"] != "wlan0" {
 		t.Fatalf("default_interface should be preserved, got: %v", routeMap["default_interface"])
+	}
+}
+
+func TestNormalizeConfigForLegacySingBox_StripsOverrideAndroidVPNOnNonAndroid(t *testing.T) {
+	input := []byte(`{
+  "route": {
+    "rules": [],
+    "override_android_vpn": true
+  }
+}`)
+
+	normalized, err := NormalizeConfigForLegacySingBox(input)
+	if err != nil {
+		t.Fatalf("normalize failed: %v", err)
+	}
+
+	var root map[string]any
+	if err := json.Unmarshal(normalized, &root); err != nil {
+		t.Fatalf("normalized json invalid: %v", err)
+	}
+	routeMap, ok := root["route"].(map[string]any)
+	if !ok {
+		t.Fatalf("route missing in normalized config")
+	}
+
+	_, hasOverride := routeMap["override_android_vpn"]
+	wantOverride := runtime.GOOS == "android"
+	if hasOverride != wantOverride {
+		t.Fatalf("expected override_android_vpn presence=%v on %s, got %v", wantOverride, runtime.GOOS, hasOverride)
 	}
 }

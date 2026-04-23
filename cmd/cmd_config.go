@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,16 +10,18 @@ import (
 	"github.com/reddts/edgegate-core/v2/config"
 	hcore "github.com/reddts/edgegate-core/v2/hcore"
 	"github.com/sagernet/sing-box/experimental/libbox"
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
+	SJ "github.com/sagernet/sing/common/json"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	coreSettingPath       string
-	configPath            string
-	defaultConfigs        config.CoreOptions = *config.DefaultCoreOptions()
+	coreSettingPath        string
+	configPath             string
+	defaultConfigs         config.CoreOptions = *config.DefaultCoreOptions()
 	commandBuildOutputPath string
 )
 
@@ -74,25 +77,37 @@ func build(path string, optionsPath string) error {
 		}
 		os.Chdir(workingDir)
 	}
-	options, err := readConfigAt(path)
-	if err != nil {
-		return err
-	}
-
 	coreOptions := &defaultConfigs
+	var err error
 	if optionsPath != "" {
 		coreOptions, err = readCoreOptionsAt(optionsPath)
 		if err != nil {
 			return err
 		}
 	}
-	config, err := config.BuildConfigJson(*coreOptions, *options)
+	content, err := os.ReadFile(path)
 	if err != nil {
+		return err
+	}
+	var builtOptions *option.Options
+	if coreOptions.ExecuteConfigAsIs {
+		builtOptions, err = config.ParseOfficialRuntimeOptions(string(content), coreOptions)
+	} else {
+		builtOptions, err = config.ConvertLegacyContentToRuntimeOptions(string(content), true, coreOptions)
+	}
+	if err != nil {
+		return err
+	}
+	builtConfig, err := config.ToJson(*builtOptions)
+	if err != nil {
+		return err
+	}
+	if err := libbox.CheckConfig(builtConfig); err != nil {
 		return err
 	}
 	if commandBuildOutputPath != "" {
 		outputPath, _ := filepath.Abs(filepath.Join(workingDir, commandBuildOutputPath))
-		err = os.WriteFile(outputPath, []byte(config), 0o644)
+		err = os.WriteFile(outputPath, []byte(builtConfig), 0o644)
 		if err != nil {
 			return err
 		}
@@ -100,7 +115,7 @@ func build(path string, optionsPath string) error {
 		// libbox.Setup(outputPath, workingDir, workingDir, true)
 		// instance, err := NewService(*patchedOptions)
 	} else {
-		os.Stdout.WriteString(config)
+		os.Stdout.WriteString(builtConfig)
 	}
 	return nil
 }
@@ -119,7 +134,8 @@ func readConfigAt(path string) (*option.Options, error) {
 		return nil, err
 	}
 	var options option.Options
-	err = options.UnmarshalJSON(content)
+	ctx := include.Context(context.Background())
+	err = SJ.UnmarshalContext(ctx, content, &options)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +144,8 @@ func readConfigAt(path string) (*option.Options, error) {
 
 func readConfigBytes(content []byte) (*option.Options, error) {
 	var options option.Options
-	err := options.UnmarshalJSON(content)
+	ctx := include.Context(context.Background())
+	err := SJ.UnmarshalContext(ctx, content, &options)
 	if err != nil {
 		return nil, err
 	}

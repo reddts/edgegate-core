@@ -27,17 +27,36 @@ func RunInstanceString(coreSettings *config.CoreOptions, proxiesInput string) (*
 	if coreSettings == nil {
 		coreSettings = config.DefaultCoreOptions()
 	}
-	singconfigs, err := config.ParseConfigContentToOptions(proxiesInput, true, coreSettings, false)
+	preparedSettings := *coreSettings
+	prepareInstanceCoreSettings(&preparedSettings)
+
+	var finalConfigs *option.Options
+	var err error
+	if preparedSettings.ExecuteConfigAsIs {
+		finalConfigs, err = config.ParseOfficialRuntimeOptions(proxiesInput, &preparedSettings)
+	} else {
+		finalConfigs, err = config.ConvertLegacyContentToRuntimeOptions(proxiesInput, true, &preparedSettings)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return RunInstance(coreSettings, singconfigs)
+	return runPreparedInstance(&preparedSettings, finalConfigs)
 }
 
 func RunInstance(coreSettings *config.CoreOptions, singconfig *option.Options) (*InstanceService, error) {
 	if coreSettings == nil {
 		coreSettings = config.DefaultCoreOptions()
 	}
+	prepareInstanceCoreSettings(coreSettings)
+
+	finalConfigs, err := config.GenerateRuntimeOptions(*coreSettings, *singconfig)
+	if err != nil {
+		return nil, err
+	}
+	return runPreparedInstance(coreSettings, finalConfigs)
+}
+
+func prepareInstanceCoreSettings(coreSettings *config.CoreOptions) {
 	coreSettings.EnableClashApi = false
 	coreSettings.InboundOptions.MixedPort = getRandomAvailblePort()
 	coreSettings.InboundOptions.EnableTun = false
@@ -48,12 +67,9 @@ func RunInstance(coreSettings *config.CoreOptions, singconfig *option.Options) (
 	coreSettings.Region = "other"
 	coreSettings.BlockAds = false
 	coreSettings.LogFile = "/dev/null"
+}
 
-	finalConfigs, err := config.BuildConfig(*coreSettings, *singconfig)
-	if err != nil {
-		return nil, err
-	}
-
+func runPreparedInstance(coreSettings *config.CoreOptions, finalConfigs *option.Options) (*InstanceService, error) {
 	instance, err := NewService(*finalConfigs)
 	if err != nil {
 		return nil, err

@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/reddts/ray2sing/ray2sing"
 	"github.com/sagernet/sing-box/experimental/libbox"
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/common/batch"
 	SJ "github.com/sagernet/sing/common/json"
@@ -42,6 +42,17 @@ func ParseConfigContentToOptions(contentstr string, debug bool, configOpt *CoreO
 		return nil, err
 	}
 	return &options, nil
+}
+
+func ConvertLegacyContentToRuntimeOptions(content string, debug bool, configOpt *CoreOptions) (*option.Options, error) {
+	if configOpt == nil {
+		configOpt = DefaultCoreOptions()
+	}
+	options, err := ParseConfigContentToOptions(content, debug, configOpt, false)
+	if err != nil {
+		return nil, err
+	}
+	return GenerateRuntimeOptions(*configOpt, *options)
 }
 
 func ParseConfigContent(contentstr string, debug bool, configOpt *CoreOptions, fullConfig bool) ([]byte, error) {
@@ -76,10 +87,10 @@ func ParseConfigContent(contentstr string, debug bool, configOpt *CoreOptions, f
 		return patchConfig(newContent, "SingboxParser", configOpt)
 	}
 
-	v2rayStr, err := ray2sing.Ray2Singbox(string(content), configOpt.UseXrayCoreWhenPossible)
-	if err == nil {
-		return patchConfig([]byte(v2rayStr), "V2rayParser", configOpt)
-	}
+	// Ray2Sing (xray-core based) converter is intentionally disabled during
+	// libbox official-line migration to avoid old xray dependency conflicts.
+	// Keep JSON/Clash parsing as primary paths.
+	fmt.Printf("Skip ray2sing converter during official libbox migration\n")
 	fmt.Printf("Convert using clash\n")
 	clashObj := clash.Clash{}
 	if err := yaml.Unmarshal(content, &clashObj); err == nil && clashObj.Proxies != nil {
@@ -107,7 +118,8 @@ func patchConfig(content []byte, name string, configOpt *CoreOptions) ([]byte, e
 		return nil, fmt.Errorf("[SingboxParser] normalize error: %w", err)
 	}
 	options := option.Options{}
-	err = json.Unmarshal(normalizedContent, &options)
+	ctx := include.Context(context.Background())
+	err = SJ.UnmarshalContext(ctx, normalizedContent, &options)
 	if err != nil {
 		return nil, fmt.Errorf("[SingboxParser] unmarshal error: %w", err)
 	}
@@ -131,7 +143,10 @@ func patchConfig(content []byte, name string, configOpt *CoreOptions) ([]byte, e
 		}
 	}
 
-	content, _ = json.MarshalIndent(options, "", "  ")
+	content, err = SJ.MarshalContext(ctx, options)
+	if err != nil {
+		return nil, fmt.Errorf("[SingboxParser] marshal error: %w", err)
+	}
 
 	fmt.Printf("%s\n", content)
 	return validateResult(content, name)

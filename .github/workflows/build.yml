@@ -125,7 +125,8 @@ jobs:
 
       - name: Build
         run: |
-          make -j$(($(nproc) + 1)) ${{ matrix.job.target }}
+          jobs=$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
+          make -j"$((jobs + 1))" ${{ matrix.job.target }}
 
       - name: zip
         run: |
@@ -203,7 +204,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ inputs.tag-name  }}
-
+          prerelease: false
           files: bin/*.tar.gz
 
 

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"runtime"
 	"strconv"
 	"strings"
 )
@@ -155,6 +156,12 @@ func NormalizeConfigForLegacySingBox(content []byte) ([]byte, error) {
 
 func normalizeRouteCompat(route map[string]any) bool {
 	changed := false
+	if runtime.GOOS != "android" {
+		if _, ok := route["override_android_vpn"]; ok {
+			delete(route, "override_android_vpn")
+			changed = true
+		}
+	}
 	for key := range route {
 		if _, ok := legacyRouteAllowedFields[key]; !ok {
 			delete(route, key)

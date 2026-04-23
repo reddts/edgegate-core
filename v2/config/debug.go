@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,7 +10,9 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
+	SJ "github.com/sagernet/sing/common/json"
 )
 
 func SaveCurrentConfig(path string, options option.Options) error {
@@ -27,16 +30,27 @@ func SaveCurrentConfig(path string, options option.Options) error {
 }
 
 func ToJson(options option.Options) (string, error) {
-	var buffer bytes.Buffer
-	encoder := json.NewEncoder(&buffer)
-	encoder.SetIndent("", "  ")
-	// fmt.Printf("%+v\n", options)
-	err := encoder.Encode(options)
+	content, err := marshalOptionsJSON(options)
 	if err != nil {
+		return "", err
+	}
+	var buffer bytes.Buffer
+	if err := json.Indent(&buffer, content, "", "  "); err != nil {
 		fmt.Printf("ERROR in coding:%+v\n", err)
 		return "", err
 	}
+	buffer.WriteByte('\n')
 	return buffer.String(), nil
+}
+
+func marshalOptionsJSON(options option.Options) ([]byte, error) {
+	ctx := include.Context(context.Background())
+	content, err := SJ.MarshalContext(ctx, options)
+	if err != nil {
+		fmt.Printf("ERROR in coding:%+v\n", err)
+		return nil, err
+	}
+	return content, nil
 }
 
 func DeferPanicToError(name string, err func(error)) {

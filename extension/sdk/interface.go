@@ -43,5 +43,8 @@ func ParseConfig(coreSettings *config.CoreOptions, configStr string) (*option.Op
 		}
 		configStr = string(body)
 	}
-	return config.ParseConfigContentToOptions(configStr, true, coreSettings, false)
+	if coreSettings.ExecuteConfigAsIs {
+		return config.ParseOfficialRuntimeOptions(configStr, coreSettings)
+	}
+	return config.ConvertLegacyContentToRuntimeOptions(configStr, true, coreSettings)
 }

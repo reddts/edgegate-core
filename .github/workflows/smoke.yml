@@ -1,0 +1,57 @@
+name: Smoke
+on:
+  workflow_call:
+
+jobs:
+  libbox-direct-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          check-latest: false
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      - name: Prepare npm cache dir
+        run: mkdir -p ~/.npm
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Setup NDK
+        uses: nttld/setup-ndk@v1.4.0
+        with:
+          ndk-version: r26d
+          add-to-path: true
+          local-cache: false
+          link-to-sdk: true
+
+      - name: Setup MinGW
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
+
+      - name: Run Go smoke tests
+        run: go test ./v2/config/... ./v2/hcore/... ./platform/mobile/... ./extension/sdk/...
+
+      - name: Build Android AAR smoke
+        run: make android
+
+      - name: Build Windows DLL smoke
+        run: make windows-amd64

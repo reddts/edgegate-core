@@ -10,23 +10,23 @@ import (
 	"github.com/reddts/edgegate-core/v2/db"
 	hcommon "github.com/reddts/edgegate-core/v2/hcommon"
 	adapter "github.com/sagernet/sing-box/adapter"
-	"github.com/sagernet/sing-box/common/conntrack"
+	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/experimental/clashapi"
-	outbound "github.com/sagernet/sing-box/outbound"
+	"github.com/sagernet/sing-box/protocol/group"
 	common "github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/batch"
 	E "github.com/sagernet/sing/common/exceptions"
 	"github.com/sagernet/sing/common/memory"
+	"github.com/sagernet/sing/service"
 )
 
 func readStatus(prev *SystemInfo) *SystemInfo {
 	var message SystemInfo
 	message.Memory = int64(memory.Inuse())
 	message.Goroutines = int32(runtime.NumGoroutine())
-	message.ConnectionsOut = int32(conntrack.Count())
 
 	if static.Box != nil {
-		if clashServer := static.Box.GetInstance().Router().ClashServer(); clashServer != nil {
+		if clashServer := service.FromContext[adapter.ClashServer](static.Box.Context()); clashServer != nil {
 			message.TrafficAvailable = true
 			trafficManager := clashServer.(*clashapi.Server).TrafficManager()
 			message.UplinkTotal, message.DownlinkTotal = trafficManager.Total()
@@ -37,15 +37,15 @@ func readStatus(prev *SystemInfo) *SystemInfo {
 			}
 		}
 
-		if currentOutBound, ok := static.Box.GetInstance().Router().Outbound(config.OutboundSelectTag); ok {
-			if selectOutBound, ok := currentOutBound.(*outbound.Selector); ok {
+		if currentOutBound, ok := static.Box.GetInstance().Outbound().Outbound(config.OutboundSelectTag); ok {
+			if selectOutBound, ok := currentOutBound.(*group.Selector); ok {
 				message.CurrentOutbound = TrimTagName(selectOutBound.Now())
 			}
 		}
 		if message.CurrentOutbound == config.OutboundURLTestTag {
-			if currentOutBound, ok := static.Box.GetInstance().Router().Outbound(config.OutboundURLTestTag); ok {
-				if urltest, ok := currentOutBound.(*outbound.URLTest); ok {
-					message.CurrentOutbound = fmt.Sprint(message.CurrentOutbound, "->", TrimTagName(urltest.Now()))
+			if currentOutBound, ok := static.Box.GetInstance().Outbound().Outbound(config.OutboundURLTestTag); ok {
+				if urlTestGroup, ok := currentOutBound.(*group.URLTest); ok {
+					message.CurrentOutbound = fmt.Sprint(message.CurrentOutbound, "->", TrimTagName(urlTestGroup.Now()))
 				}
 			}
 		}
@@ -62,21 +62,6 @@ func readStatus(prev *SystemInfo) *SystemInfo {
 	}
 
 	return &message
-}
-
-func (s *CoreRPCServer) GetSystemInfo(req *hcommon.Empty, stream Core_GetSystemInfoServer) error {
-	// return fmt.Errorf("not implemented yet")
-	ticker := time.NewTicker(time.Duration(1 * time.Second))
-	current_status := readStatus(nil)
-	for {
-		select {
-		case <-stream.Context().Done():
-			return nil
-		case <-ticker.C:
-			current_status = readStatus(current_status)
-			stream.Send(current_status)
-		}
-	}
 }
 
 // func (s *CoreRPCServer) OutboundsInfo(req *hcommon.Empty, stream grpc.ServerStreamingServer[OutboundGroupList]) error {
@@ -168,14 +153,14 @@ func SelectOutbound(in *SelectOutboundRequest) (*hcommon.Response, error) {
 	// 	Message: "",
 	// }, nil
 	Log(LogLevel_DEBUG, LogType_CORE, "select outbound: ", in.GroupTag, " -> ", in.OutboundTag)
-	outboundGroup, isLoaded := static.Box.GetInstance().Router().Outbound(in.GroupTag)
+	outboundGroup, isLoaded := static.Box.GetInstance().Outbound().Outbound(in.GroupTag)
 	if !isLoaded {
 		return &hcommon.Response{
 			Code:    hcommon.ResponseCode_FAILED,
 			Message: E.New("selector not found: ", in.GroupTag).Error(),
 		}, E.New("selector not found: ", in.GroupTag)
 	}
-	selector, isSelector := outboundGroup.(*outbound.Selector)
+	selector, isSelector := outboundGroup.(*group.Selector)
 	if !isSelector {
 		return &hcommon.Response{
 			Code:    hcommon.ResponseCode_FAILED,
@@ -190,15 +175,17 @@ func SelectOutbound(in *SelectOutboundRequest) (*hcommon.Response, error) {
 	}
 	Log(LogLevel_DEBUG, LogType_CORE, "Trying to ping outbound: ", in.OutboundTag)
 	go func() {
-		for _, detour := range static.Box.GetInstance().Router().Outbounds() {
-			if urlTest, ok := detour.(*outbound.URLTest); ok {
-				if urlTest.ForceRecheckOutbound(in.OutboundTag) == nil {
-					break
-				}
+		for _, detour := range static.Box.GetInstance().Outbound().Outbounds() {
+			if urlTest, ok := detour.(*group.URLTest); ok {
+				urlTest.CheckOutbounds()
+				break
 			}
 		}
+		refreshAllFFIOutbounds()
+		refreshFFIStatus()
 	}()
-	static.Box.UrlTestHistory().Observer().Emit(2)
+	refreshAllFFIOutbounds()
+	refreshFFIStatus()
 	return &hcommon.Response{
 		Code:    hcommon.ResponseCode_OK,
 		Message: "",
@@ -228,8 +215,8 @@ func UrlTest(in *UrlTestRequest) (*hcommon.Response, error) {
 	if static.Box == nil {
 		return nil, E.New("service not ready")
 	}
-	router := static.Box.GetInstance().Router()
-	abstractOutboundGroup, isLoaded := router.Outbound(groupTag)
+	outboundManager := static.Box.GetInstance().Outbound()
+	abstractOutboundGroup, isLoaded := outboundManager.Outbound(groupTag)
 	if !isLoaded {
 		return &hcommon.Response{
 			Code:    hcommon.ResponseCode_FAILED,
@@ -244,22 +231,16 @@ func UrlTest(in *UrlTestRequest) (*hcommon.Response, error) {
 		}, E.New("outbound is not a group: ", groupTag)
 	}
 
-	if urlTest, isURLTest := abstractOutboundGroup.(*outbound.URLTest); isURLTest {
+	if urlTest, isURLTest := abstractOutboundGroup.(*group.URLTest); isURLTest {
 		go func() {
-			for _, p := range router.Outbounds() {
-				if p.Tag() == groupTag {
-					continue
-				}
-				if group, isGroup := p.(adapter.OutboundGroup); isGroup {
-					urlTest.ForceRecheckOutbound(group.Now())
-				}
-			}
 			urlTest.CheckOutbounds()
+			refreshAllFFIOutbounds()
+			refreshFFIStatus()
 		}()
 	} else {
 		historyStorage := static.Box.UrlTestHistory()
 		outbounds := common.Filter(common.Map(outboundGroup.All(), func(it string) adapter.Outbound {
-			itOutbound, _ := router.Outbound(it)
+			itOutbound, _ := outboundManager.Outbound(it)
 			return itOutbound
 		}), func(it adapter.Outbound) bool {
 			if it == nil {
@@ -273,11 +254,23 @@ func UrlTest(in *UrlTestRequest) (*hcommon.Response, error) {
 			outboundToTest := detour
 			outboundTag := outboundToTest.Tag()
 			b.Go(outboundTag, func() (any, error) {
-				instance := static.Box.GetInstance()
-				outbound.CheckOutbound(instance.GetLogger(), static.Box.Context(), historyStorage, router, "", outboundToTest, nil)
+				t, err := urltest.URLTest(static.Box.Context(), "", outboundToTest)
+				if err != nil {
+					historyStorage.DeleteURLTestHistory(outboundTag)
+				} else {
+					historyStorage.StoreURLTestHistory(outboundTag, &adapter.URLTestHistory{
+						Time:  time.Now(),
+						Delay: t,
+					})
+				}
 				return nil, nil
 			})
 		}
+		go func() {
+			_ = b.Wait()
+			refreshAllFFIOutbounds()
+			refreshFFIStatus()
+		}()
 	}
 
 	return &hcommon.Response{

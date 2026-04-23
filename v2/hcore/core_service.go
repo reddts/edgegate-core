@@ -1,7 +1,5 @@
 package hcore
 
-import "github.com/sagernet/sing-box/experimental/libbox"
-
 // CoreRPCServer implements the gRPC Core service handlers.
 type CoreRPCServer struct {
 	UnimplementedCoreServer
@@ -9,6 +7,6 @@ type CoreRPCServer struct {
 
 // InstanceService wraps a running libbox instance and its runtime metadata.
 type InstanceService struct {
-	libbox     *libbox.BoxService
+	libbox     *BoxService
 	ListenPort uint16
 }

@@ -10,7 +10,7 @@ import (
 )
 
 type CoreInstance struct {
-	Box         *libbox.BoxService
+	Box         *BoxService
 	CoreOptions *config.CoreOptions
 	// activeConfigPath string
 	CoreLogFactory            log.Factory

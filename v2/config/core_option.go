@@ -12,6 +12,7 @@ import (
 
 type CoreOptions struct {
 	EnableFullConfig        bool   `json:"enable-full-config,omitempty" overridable:"true"`
+	ExecuteConfigAsIs       bool   `json:"execute-config-as-is,omitempty"`
 	LogLevel                string `json:"log-level,omitempty"`
 	LogFile                 string `json:"log-file,omitempty"`
 	EnableClashApi          bool   `json:"enable-clash-api,omitempty"`
@@ -104,7 +105,8 @@ type WarpOptions struct {
 
 func DefaultCoreOptions() *CoreOptions {
 	return &CoreOptions{
-		EnableNTP: true,
+		ExecuteConfigAsIs: true,
+		EnableNTP:         false,
 		DNSOptions: DNSOptions{
 			RemoteDnsAddress:        "1.1.1.1",
 			RemoteDnsDomainStrategy: option.DomainStrategy(dns.DomainStrategyAsIS),
@@ -130,7 +132,7 @@ func DefaultCoreOptions() *CoreOptions {
 			// URLTestIdleTimeout: DurationInSeconds(6000),
 		},
 		RouteOptions: RouteOptions{
-			ResolveDestination:     false,
+			ResolveDestination:     true,
 			IPv6Mode:               option.DomainStrategy(dns.DomainStrategyAsIS),
 			BypassLAN:              false,
 			AllowConnectionFromLAN: false,

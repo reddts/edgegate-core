@@ -11,12 +11,15 @@ ifeq ($(OS),Windows_NT)
 # Not available for Windows! use bash in WSL
 endif
 
-TAGS=with_gvisor,with_quic,with_wireguard,with_ech,with_utls,with_clash_api,with_grpc
+TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api
 IOS_ADD_TAGS=with_dhcp,with_low_memory,with_conntrack
 ANDROID_LDFLAGS=-w -s -linkmode=external -extldflags=-Wl,-z,max-page-size=16384
-GOBUILDLIB=CGO_ENABLED=1 go build -trimpath -tags $(TAGS) -ldflags="$(ANDROID_LDFLAGS)" -buildmode=c-shared
+DESKTOP_LDFLAGS=-w -s
+GOBUILDLIB=CGO_ENABLED=1 go build -trimpath -tags $(TAGS) -ldflags="$(DESKTOP_LDFLAGS)" -buildmode=c-shared
 GOBUILDSRV=CGO_ENABLED=1 go build -ldflags "-s -w" -trimpath -tags $(TAGS)
+WINDOWS_MINGW_PATH=D:/msys64/mingw64/bin:D:/msys64/usr/bin:$$PATH
 SKIP_NPM ?=
+SYNC_SCRIPT=../sync-edgegates-core-artifacts.ps1
 UNAME_S := $(shell uname -s 2>/dev/null || echo unknown)
 ifneq (,$(filter Windows_NT,$(OS)))
 SKIP_NPM := 1
@@ -62,6 +65,21 @@ headers:
 android: lib_install
 	gomobile bind -v -androidapi=21 -javapkg=com.edgegate.core -libname=edgegate-core -tags=$(TAGS) -trimpath -target=android -ldflags="$(ANDROID_LDFLAGS)" -o $(BINDIR)/$(LIBNAME).aar github.com/sagernet/sing-box/experimental/libbox ./platform/mobile
 
+sync-artifacts:
+	@if [ -f "$(SYNC_SCRIPT)" ]; then \
+		if command -v pwsh >/dev/null 2>&1; then \
+			pwsh -NoProfile -File "$(SYNC_SCRIPT)"; \
+		elif command -v powershell >/dev/null 2>&1; then \
+			powershell -NoProfile -ExecutionPolicy Bypass -File "$(SYNC_SCRIPT)"; \
+		else \
+			echo "Skip sync: neither pwsh nor powershell found"; \
+		fi; \
+	else \
+		echo "Skip sync: script not found ($(SYNC_SCRIPT))"; \
+	fi
+
+android-sync: android sync-artifacts
+
 ios-full: lib_install
 	gomobile bind -v  -target ios,iossimulator,tvos,tvossimulator,macos -libname=edgegate-core -tags=$(TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="-w -s" -o $(BINDIR)/$(PRODUCT_NAME).xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
 	mv $(BINDIR)/$(PRODUCT_NAME).xcframework $(BINDIR)/$(LIBNAME).xcframework 
@@ -80,14 +98,9 @@ webui:
 
 .PHONY: build
 windows-amd64: prepare
-	env GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc $(GOBUILDLIB) -o $(BINDIR)/$(LIBNAME).dll ./platform/desktop
-	go install -mod=readonly github.com/akavel/rsrc@latest ||echo "rsrc error in installation"
-	go run ./cli tunnel exit
-	cp $(BINDIR)/$(LIBNAME).dll ./$(LIBNAME).dll 
-	$$(go env GOPATH)/bin/rsrc -ico ./assets/edgegate-cli.ico -o ./cmd/bydll/cli.syso ||echo "rsrc error in syso"
-	env GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc CGO_LDFLAGS="$(LIBNAME).dll" $(GOBUILDSRV) -o $(BINDIR)/$(CLINAME).exe ./cmd/bydll
-	rm ./$(LIBNAME).dll
-	make webui
+	cmd /c build_windows.bat
+
+windows-amd64-sync: windows-amd64 sync-artifacts
 	
 
 linux-amd64: prepare

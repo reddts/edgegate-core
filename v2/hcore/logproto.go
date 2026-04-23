@@ -5,7 +5,6 @@ import (
 	"os"
 	"time"
 
-	hcommon "github.com/reddts/edgegate-core/v2/hcommon"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing/common/observable"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -28,21 +27,4 @@ func Log(level LogLevel, typ LogType, message ...any) {
 		Time:    timestamppb.New(time.Now()),
 		Message: fmt.Sprint(message...),
 	})
-}
-
-func (s *CoreRPCServer) LogListener(req *hcommon.Empty, stream Core_LogListenerServer) error {
-	logSub, stopch, _ := static.logObserver.Subscribe()
-	defer static.logObserver.UnSubscribe(logSub)
-
-	for {
-		select {
-		case <-stream.Context().Done():
-			return nil
-		case <-stopch:
-			return nil
-		case info := <-logSub:
-			stream.Send(info)
-			// case <-time.After(500 * time.Millisecond):
-		}
-	}
 }

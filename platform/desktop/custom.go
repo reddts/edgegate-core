@@ -70,9 +70,7 @@ func emptyOrErrorC(err error) *C.char {
 		return C.CString("")
 	}
 	log.Error(err.Error())
-	str := C.CString(err.Error())
-	defer C.free(unsafe.Pointer(str))
-	return str
+	return C.CString(err.Error())
 }
 
 func jsonResult(ok bool, errMsg string, data any) *C.char {
@@ -138,7 +136,7 @@ func start(configPath *C.char, disableMemoryLimit bool) *C.char {
 
 	_, err := hcore.Start(&hcore.StartRequest{
 		ConfigPath:             C.GoString(configPath),
-		EnableOldCommandServer: true,
+		EnableOldCommandServer: false,
 		DisableMemoryLimit:     bool(disableMemoryLimit),
 	})
 	return emptyOrErrorC(err)
@@ -160,38 +158,10 @@ func restart(configPath *C.char, disableMemoryLimit bool) *C.char {
 
 	_, err := hcore.Restart(&hcore.StartRequest{
 		ConfigPath:             C.GoString(configPath),
-		EnableOldCommandServer: true,
+		EnableOldCommandServer: false,
 		DisableMemoryLimit:     bool(disableMemoryLimit),
 	})
 	return emptyOrErrorC(err)
-}
-
-//export GetServerPublicKey
-func GetServerPublicKey() *C.char {
-	// runtime.LockOSThread()
-	// defer runtime.UnlockOSThread()
-
-	publicKey := hcore.GetGrpcServerPublicKey()
-	return C.CString(string(publicKey)) // Return as C string, caller must free
-}
-
-//export AddGrpcClientPublicKey
-func AddGrpcClientPublicKey(clientPublicKey *C.char) *C.char {
-	// runtime.LockOSThread()
-	// defer runtime.UnlockOSThread()
-
-	// Convert C string to Go byte slice
-	clientKey := C.GoBytes(unsafe.Pointer(clientPublicKey), C.int(len(C.GoString(clientPublicKey))))
-	err := hcore.AddGrpcClientPublicKey(clientKey)
-	return emptyOrErrorC(err)
-}
-
-//export closeGrpc
-func closeGrpc(mode C.int) {
-	// runtime.LockOSThread()
-	// defer runtime.UnlockOSThread()
-
-	hcore.Close(hcore.SetupMode(mode))
 }
 
 //export parseConfig

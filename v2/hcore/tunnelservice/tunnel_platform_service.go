@@ -1,3 +1,6 @@
+//go:build legacy_grpc_runtime
+// +build legacy_grpc_runtime
+
 package tunnelservice
 
 import (
@@ -159,13 +162,13 @@ func control(s service.Service, goArg string) (int, string) {
 	if err == nil {
 		out := fmt.Sprintf("Tunnel Service %sed Successfully.", goArg)
 		if dolog {
-			fmt.Printf(out)
+			fmt.Println(out)
 		}
 		return 0, out
 	} else {
 		out := fmt.Sprintf("Error: %v", err)
 		if dolog {
-			log.Printf(out)
+			log.Println(out)
 		}
 		return 2, out
 	}

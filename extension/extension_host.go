@@ -1,3 +1,6 @@
+//go:build legacy_grpc_extension
+// +build legacy_grpc_extension
+
 package extension
 
 import (
@@ -137,10 +140,4 @@ func (e ExtensionHostService) EditExtension(ctx context.Context, req *EditExtens
 		Code:        hcommon.ResponseCode_OK,
 		Message:     "Success",
 	}, nil
-}
-
-type extensionData struct {
-	Id       string `json:"id"`
-	Enable   bool   `json:"enable"`
-	JsonData []byte
 }

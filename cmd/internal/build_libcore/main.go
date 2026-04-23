@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/reddts/edgegate-core/cmd/internal/build_shared"
@@ -46,8 +47,7 @@ const libName = "edgegate-core"
 
 func init() {
 	sharedFlags = append(sharedFlags, "-trimpath")
-	sharedFlags = append(sharedFlags, "-ldflags", "-s -w -linkmode=external -extldflags=-Wl,-z,max-page-size=16384")
-	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_ech", "with_utls", "with_clash_api", "with_grpc")
+	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api")
 	iosTags = append(iosTags, "with_dhcp", "with_low_memory", "with_conntrack")
 }
 
@@ -56,19 +56,61 @@ func setDesktopEnv() {
 	os.Setenv("buildmode", "c-shared")
 }
 
+func ensureWindowsMingwPath() {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	const mingwBin = `D:\msys64\mingw64\bin`
+	const msysBin = `D:\msys64\usr\bin`
+	current := os.Getenv("PATH")
+	if strings.Contains(strings.ToLower(current), strings.ToLower(mingwBin)) {
+		return
+	}
+	os.Setenv("PATH", mingwBin+";"+msysBin+";"+current)
+}
+
 func buildWindows() {
 	setDesktopEnv()
+	ensureWindowsMingwPath()
 	os.Setenv("GOOS", "windows")
 	os.Setenv("GOARCH", "amd64")
 	os.Setenv("CC", "x86_64-w64-mingw32-gcc")
+	os.Setenv("CXX", "x86_64-w64-mingw32-g++")
 
 	args := []string{"build"}
 	args = append(args, sharedFlags...)
+	args = append(args, "-ldflags", "-s -w")
 	args = append(args, "-tags")
 	args = append(args, strings.Join(sharedTags, ","))
 
 	output := filepath.Join("bin", libName+".dll")
-	args = append(args, "-o", output, "./custom")
+	args = append(args, "-o", output, "./platform/desktop")
+
+	command := exec.Command("go", args...)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+	log.Debug("command: ", command.String())
+	err := command.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	mirrorSharedLibrary(output, filepath.Join("bin", "libcore.dll"))
+	mirrorSharedLibrary(filepath.Join("bin", libName+".h"), filepath.Join("bin", "libcore.h"))
+}
+
+func buildLinux() {
+	setDesktopEnv()
+	os.Setenv("GOOS", "linux")
+	os.Setenv("GOARCH", "amd64")
+
+	args := []string{"build"}
+	args = append(args, sharedFlags...)
+	args = append(args, "-ldflags", "-s -w -linkmode=external -extldflags=-Wl,-z,max-page-size=16384")
+	args = append(args, "-tags")
+	args = append(args, strings.Join(sharedTags, ","))
+
+	output := filepath.Join("bin", libName+".so")
+	args = append(args, "-o", output, "./platform/desktop")
 
 	command := exec.Command("go", args...)
 	command.Stdout = os.Stdout
@@ -80,24 +122,12 @@ func buildWindows() {
 	}
 }
 
-func buildLinux() {
-	setDesktopEnv()
-	os.Setenv("GOOS", "linux")
-	os.Setenv("GOARCH", "amd64")
-
-	args := []string{"build"}
-	args = append(args, sharedFlags...)
-	args = append(args, "-tags")
-	args = append(args, strings.Join(sharedTags, ","))
-
-	output := filepath.Join("bin", libName+".so")
-	args = append(args, "-o", output, "./custom")
-
-	command := exec.Command("go", args...)
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	log.Debug("command: ", command.String())
-	err := command.Run()
+func mirrorSharedLibrary(src string, dst string) {
+	content, err := os.ReadFile(src)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = os.WriteFile(dst, content, 0o644)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -137,13 +167,14 @@ func buildMacOSArch(arch string) (string, error) {
 
 	args := []string{"build"}
 	args = append(args, sharedFlags...)
+	args = append(args, "-ldflags", "-s -w -linkmode=external -extldflags=-Wl,-z,max-page-size=16384")
 	tags := append(sharedTags, iosTags...)
 	args = append(args, "-tags")
 	args = append(args, strings.Join(tags, ","))
 
 	filename := libName + "-" + arch + ".dylib"
 	output := filepath.Join("bin", filename)
-	args = append(args, "-o", output, "./custom")
+	args = append(args, "-o", output, "./platform/desktop")
 
 	command := exec.Command("go", args...)
 	command.Stdout = os.Stdout

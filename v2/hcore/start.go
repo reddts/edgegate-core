@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/reddts/edgegate-core/v2/config"
 	"github.com/reddts/edgegate-core/v2/db"
 	hcommon "github.com/reddts/edgegate-core/v2/hcommon"
 	service_manager "github.com/reddts/edgegate-core/v2/service_manager"
-	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/experimental/libbox"
 )
 
@@ -101,6 +101,7 @@ func StartService(in *StartRequest) (coreResponse *CoreInfoResponse, err error) 
 	if err := service_manager.OnMainServicePreStart(options); err != nil {
 		return errorWrapper(MessageType_ERROR_EXTENSION, err)
 	}
+	config.SanitizeRuntimeOptionsForPlatform(options)
 	currentBuildConfigPath := filepath.Join(sWorkingPath, "data/current-config.json")
 	Log(LogLevel_DEBUG, LogType_CORE, "Saving config to ", currentBuildConfigPath)
 
@@ -111,15 +112,23 @@ func StartService(in *StartRequest) (coreResponse *CoreInfoResponse, err error) 
 	}
 	Log(LogLevel_DEBUG, LogType_CORE, "Current Config is:\n", string(pout))
 
-	bopts := box.Options{
-		Options:           *options,
-		PlatformLogWriter: &LogInterface{},
-	}
 	if static.globalPlatformInterface != nil {
-		bopts.PlatformInterface = libbox.WrapPlatformInterface(static.globalPlatformInterface)
+		Log(LogLevel_WARNING, LogType_CORE, "platform interface is currently ignored in hcore compatibility mode")
+	}
+	if options.Route != nil {
+		Log(
+			LogLevel_DEBUG,
+			LogType_CORE,
+			fmt.Sprintf(
+				"Runtime route options on %s: override_android_vpn=%v auto_detect_interface=%v",
+				runtime.GOOS,
+				options.Route.OverrideAndroidVPN,
+				options.Route.AutoDetectInterface,
+			),
+		)
 	}
 	libbox.SetMemoryLimit(!in.DisableMemoryLimit)
-	instance, err := libbox.NewHService(bopts)
+	instance, err := NewService(*options)
 	if err != nil {
 		return errorWrapper(MessageType_CREATE_SERVICE, err)
 	}
@@ -133,8 +142,6 @@ func StartService(in *StartRequest) (coreResponse *CoreInfoResponse, err error) 
 		<-time.After(1000 * time.Millisecond)
 	}
 
-	instance.GetInstance().AddPostService("coreMainServiceManager", &coreMainServiceManager{})
-
 	// if err := startCommandServer(instance); err != nil {
 	// 	return errorWrapper(MessageType_START_COMMAND_SERVER, err)
 	// }
@@ -143,6 +150,7 @@ func StartService(in *StartRequest) (coreResponse *CoreInfoResponse, err error) 
 		return errorWrapper(MessageType_START_SERVICE, err)
 	}
 	static.Box = instance
+	refreshFFISnapshotCaches()
 
 	return SetCoreStatus(CoreStates_STARTED, MessageType_EMPTY, ""), nil
 }

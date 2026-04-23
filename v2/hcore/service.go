@@ -17,12 +17,13 @@ import (
 	B "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/common/urltest"
 	"github.com/sagernet/sing-box/experimental/libbox"
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"
+	SJ "github.com/sagernet/sing/common/json"
 	"github.com/sagernet/sing/service"
 	"github.com/sagernet/sing/service/filemanager"
-	"github.com/sagernet/sing/service/pause"
 )
 
 var (
@@ -65,7 +66,6 @@ func Setup(params *SetupRequest, platformInterface libbox.PlatformInterface) err
 			BasePath:        params.BasePath,
 			WorkingPath:     params.WorkingDir,
 			TempPath:        params.TempDir,
-			IsTVOS:          !tcpConn,
 			FixAndroidStack: true,
 		})
 
@@ -100,12 +100,14 @@ func Setup(params *SetupRequest, platformInterface libbox.PlatformInterface) err
 		return E.Cause(err, "create logger")
 	}
 
-	Log(LogLevel_DEBUG, LogType_CORE, fmt.Sprintf("StartGrpcServerByMode %s %d\n", params.Listen, params.Mode))
+	Log(LogLevel_DEBUG, LogType_CORE, fmt.Sprintf("Setup mode %d listen=%s\n", params.Mode, params.Listen))
 	switch params.Mode {
 	case SetupMode_OLD:
 		statusPropagationPort = int64(params.FlutterStatusPort)
-	// case SetupMode_GRPC_BACKGROUND_INSECURE:
 	default:
+		if params.Listen == "" {
+			break
+		}
 		_, err := StartGrpcServerByMode(params.Listen, params.Mode)
 		if err != nil {
 			return err
@@ -130,10 +132,12 @@ func Setup(params *SetupRequest, platformInterface libbox.PlatformInterface) err
 	return InitCoreService()
 }
 
-func NewService(options option.Options) (*libbox.BoxService, error) {
+func NewService(options option.Options) (*BoxService, error) {
+	config.SanitizeRuntimeOptionsForPlatform(&options)
 	runtimeDebug.FreeOSMemory()
 	ctx, cancel := context.WithCancel(context.Background())
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, sUserID, sGroupID)
+	ctx = include.Context(ctx)
 	urlTestHistoryStorage := urltest.NewHistoryStorage()
 	ctx = service.ContextWithPtr(ctx, urlTestHistoryStorage)
 	instance, err := B.New(B.Options{
@@ -146,14 +150,12 @@ func NewService(options option.Options) (*libbox.BoxService, error) {
 		return nil, E.Cause(err, "create service")
 	}
 	runtimeDebug.FreeOSMemory()
-	service := libbox.NewBoxService(
+	return NewBoxServiceCompat(
 		ctx,
 		cancel,
 		instance,
-		service.FromContext[pause.Manager](ctx),
 		urlTestHistoryStorage,
-	)
-	return &service, nil
+	), nil
 }
 
 func readOptions(configContent string) (option.Options, error) {
@@ -164,9 +166,18 @@ func readOptions(configContent string) (option.Options, error) {
 	if err != nil {
 		return option.Options{}, E.Cause(err, "normalize config")
 	}
-	err = options.UnmarshalJSON(normalizedContent)
+	ctx := include.Context(context.Background())
+	err = SJ.UnmarshalContext(ctx, normalizedContent, &options)
 	if err != nil {
 		return option.Options{}, E.Cause(err, "decode config")
 	}
 	return options, nil
+}
+
+func readOfficialOptions(configContent string) (option.Options, error) {
+	options, err := config.ParseOfficialRuntimeOptions(configContent, static.CoreOptions)
+	if err != nil {
+		return option.Options{}, E.Cause(err, "decode config")
+	}
+	return *options, nil
 }

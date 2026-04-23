@@ -1,6 +1,7 @@
 package hcore
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +16,9 @@ import (
 
 	"github.com/reddts/edgegate-core/v2/config"
 
+	"github.com/sagernet/sing-box/include"
 	"github.com/sagernet/sing-box/option"
+	SJ "github.com/sagernet/sing/common/json"
 )
 
 func RunStandalone(coreSettingPath string, configPath string, defaultConfig config.CoreOptions) error {
@@ -150,18 +153,20 @@ func extractRefreshInterval(header http.Header, bodyStr string) (int, error) {
 }
 
 func buildConfig(configContent string, options config.CoreOptions) (string, error) {
-	parsedContent, err := config.ParseConfigContent(configContent, true, &options, false)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse config content: %w", err)
-	}
-	singconfigs, err := readConfigBytes([]byte(parsedContent))
-	if err != nil {
-		return "", err
-	}
-
-	finalconfig, err := config.BuildConfig(options, *singconfigs)
-	if err != nil {
-		return "", fmt.Errorf("failed to build config: %w", err)
+	var finalconfig *option.Options
+	var err error
+	if options.ExecuteConfigAsIs {
+		singconfigs, err := readOfficialConfigBytes([]byte(configContent))
+		if err != nil {
+			return "", err
+		}
+		config.PrepareOfficialRuntimeOptions(singconfigs, &options)
+		finalconfig = singconfigs
+	} else {
+		finalconfig, err = config.ConvertLegacyContentToRuntimeOptions(configContent, true, &options)
+		if err != nil {
+			return "", fmt.Errorf("failed to convert config content: %w", err)
+		}
 	}
 
 	finalconfig.Log.Output = ""
@@ -186,8 +191,8 @@ func buildConfig(configContent string, options config.CoreOptions) (string, erro
 			TempDir:           "./tmp",
 			FlutterStatusPort: 0,
 			Debug:             false,
-			Listen:            "127.0.0.1:17078",
-			Mode:              SetupMode_GRPC_NORMAL_INSECURE,
+			Listen:            "",
+			Mode:              SetupMode_OLD,
 		}, nil); err != nil {
 		return "", fmt.Errorf("failed to set up global configuration: %w", err)
 	}
@@ -231,7 +236,18 @@ func readConfigBytes(content []byte) (*option.Options, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = options.UnmarshalJSON(normalizedContent)
+	ctx := include.Context(context.Background())
+	err = SJ.UnmarshalContext(ctx, normalizedContent, &options)
+	if err != nil {
+		return nil, err
+	}
+	return &options, nil
+}
+
+func readOfficialConfigBytes(content []byte) (*option.Options, error) {
+	var options option.Options
+	ctx := include.Context(context.Background())
+	err := SJ.UnmarshalContext(ctx, content, &options)
 	if err != nil {
 		return nil, err
 	}

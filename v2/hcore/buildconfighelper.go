@@ -38,25 +38,16 @@ func BuildConfig(in *StartRequest) (*option.Options, error) {
 	// Log(LogLevel_DEBUG, LogType_CORE, "Parsing Config... ", in.ConfigPath, " content:", content, "-")
 	Log(LogLevel_DEBUG, LogType_CORE, "Parsing Config... ")
 
-	parsedContent, err := readOptions(content)
+	options, err := buildRuntimeOptionsFromContent(
+		content,
+		in.EnableRawConfig || (static.CoreOptions != nil && static.CoreOptions.ExecuteConfigAsIs),
+		static.CoreOptions,
+	)
 	Log(LogLevel_DEBUG, LogType_CORE, "Parsed")
-
 	if err != nil {
 		return nil, err
 	}
-
-	if !in.EnableRawConfig {
-		// hcontent, err := json.MarshalIndent(static.CoreOptions, "", " ")
-		// if err != nil {
-		// 	return nil, err
-		// }
-
-		// Log(LogLevel_DEBUG, LogType_CORE, "Building config ", string(hcontent))
-		// Log(LogLevel_DEBUG, LogType_CORE, "Building config ")
-		return config.BuildConfig(*static.CoreOptions, parsedContent)
-	}
-
-	return &parsedContent, nil
+	return options, nil
 }
 
 func (s *CoreRPCServer) Parse(ctx context.Context, in *ParseRequest) (*ParseResponse, error) {
@@ -84,15 +75,30 @@ func Parse(in *ParseRequest) (*ParseResponse, error) {
 
 	}
 
-	config, err := config.ParseConfigContent(content, true, static.CoreOptions, false)
-	if err != nil {
-		return &ParseResponse{
-			ResponseCode: hcommon.ResponseCode_FAILED,
-			Message:      err.Error(),
-		}, err
+	var err error
+	var configContent []byte
+	if static.CoreOptions != nil && static.CoreOptions.ExecuteConfigAsIs {
+		_, err = readOfficialOptions(content)
+		if err != nil {
+			return &ParseResponse{
+				ResponseCode: hcommon.ResponseCode_FAILED,
+				Message:      err.Error(),
+			}, err
+		}
+		configContent = []byte(content)
+	} else {
+		var parsed []byte
+		parsed, err = config.ParseConfigContent(content, true, static.CoreOptions, false)
+		if err != nil {
+			return &ParseResponse{
+				ResponseCode: hcommon.ResponseCode_FAILED,
+				Message:      err.Error(),
+			}, err
+		}
+		configContent = parsed
 	}
 	if in.ConfigPath != "" {
-		err = os.WriteFile(in.ConfigPath, config, 0o644)
+		err = os.WriteFile(in.ConfigPath, configContent, 0o644)
 		if err != nil {
 			return &ParseResponse{
 				ResponseCode: hcommon.ResponseCode_FAILED,
@@ -102,7 +108,7 @@ func Parse(in *ParseRequest) (*ParseResponse, error) {
 	}
 	return &ParseResponse{
 		ResponseCode: hcommon.ResponseCode_OK,
-		Content:      string(config),
+		Content:      string(configContent),
 		Message:      "",
 	}, err
 }
@@ -167,15 +173,15 @@ func generateConfigFromFile(path string, configOpt config.CoreOptions) (string, 
 	if err != nil {
 		return "", err
 	}
-	options, err := readOptions(string(content))
+	options, err := buildRuntimeOptionsFromContent(string(content), configOpt.ExecuteConfigAsIs, &configOpt)
 	if err != nil {
 		return "", err
 	}
-	config, err := config.BuildConfigJson(configOpt, options)
+	generatedConfig, err := config.ToJson(*options)
 	if err != nil {
 		return "", err
 	}
-	return config, nil
+	return generatedConfig, nil
 }
 
 func removeTunnelIfNeeded(options *option.Options) (tuninb *option.TunInboundOptions) {
@@ -188,7 +194,13 @@ func removeTunnelIfNeeded(options *option.Options) (tuninb *option.TunInboundOpt
 
 	for _, inb := range options.Inbounds {
 		if inb.Type == C.TypeTun {
-			tuninb = &inb.TunOptions
+			switch tunOpts := inb.Options.(type) {
+			case option.TunInboundOptions:
+				copied := tunOpts
+				tuninb = &copied
+			case *option.TunInboundOptions:
+				tuninb = tunOpts
+			}
 		} else {
 			newInbounds = append(newInbounds, inb)
 		}
@@ -196,4 +208,11 @@ func removeTunnelIfNeeded(options *option.Options) (tuninb *option.TunInboundOpt
 
 	options.Inbounds = newInbounds
 	return tuninb
+}
+
+func buildRuntimeOptionsFromContent(content string, rawConfig bool, coreOptions *config.CoreOptions) (*option.Options, error) {
+	if rawConfig {
+		return config.ParseOfficialRuntimeOptions(content, coreOptions)
+	}
+	return config.ConvertLegacyContentToRuntimeOptions(content, true, coreOptions)
 }

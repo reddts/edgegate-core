@@ -2,6 +2,7 @@ package config
 
 import (
 	context "context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -43,7 +44,7 @@ func (s *server) GenerateFullConfig(ctx context.Context, in *GenerateConfigReque
 	if err != nil {
 		return nil, err
 	}
-	err = options.UnmarshalJSON(normalizedContent)
+	err = json.Unmarshal(normalizedContent, &options)
 	if err != nil {
 		return nil, err
 	}

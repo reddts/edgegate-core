@@ -1,3 +1,6 @@
+//go:build legacy_grpc_runtime
+// +build legacy_grpc_runtime
+
 package main
 
 import (
