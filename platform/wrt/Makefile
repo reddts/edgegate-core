@@ -1,12 +1,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=edgegate-core
-PKG_VERSION:=1.10.0
+PKG_VERSION:=1.10.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:=https://codeload.github.com/reddts/edgegate-core/tar.gz/v$(PKG_VERSION)?
-PKG_HASH:=cb8cca46cc2d99f4e1313d59f8d5d3e694a74b776fa0f89dd94c1272dd9d6e69
+PKG_HASH:=2bf17b1f7123d855e4ad58c8dcba2be6aa5580aa6dfa1ff97ec616c89471f68f
 
 PKG_LICENSE:=https://github.com/reddts/edgegate-core/edit/main/LICENSE.md
 PKG_LICENSE_FILES:=LICENSE
