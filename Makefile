@@ -98,7 +98,11 @@ webui:
 
 .PHONY: build
 windows-amd64: prepare
+ifeq ($(OS),Windows_NT)
 	cmd /c build_windows.bat
+else
+	bash ./build_windows.sh
+endif
 
 windows-amd64-sync: windows-amd64 sync-artifacts
 	
