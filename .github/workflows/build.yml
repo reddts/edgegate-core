@@ -134,7 +134,7 @@ jobs:
           rm -f /*.h */*.h
 
           rm ./edgegate-core-* || echo "no other files to zip"
-          files=$(find .  \( -name "edgegate-core.dll" -o -name "edgegate-core.so" -o -name "edgegate-core.dylib" -o -name "edgegate-core.aar" -o -name "webui" -o -name "EdgegateCore.xcframework" -o -name "EdgegateCli" -o -name "EdgegateCli.exe" \))
+          files=$(find .  \( -name "edgegate-core.dll" -o -name "edgegate-core.so" -o -name "edgegate-core.dylib" -o -name "edgegate-core.aar" -o -name "webui" -o -name "EdgegateCore.xcframework" -o -name "edgegate-core.xcframework" -o -name "EdgegateCli" -o -name "EdgegateCli.exe" \))
           echo tar -czvf ${{ matrix.job.name }}.tar.gz  $files
           tar -czvf ${{ matrix.job.name }}.tar.gz  $files
           
