@@ -40,6 +40,7 @@ func main() {
 var (
 	sharedFlags []string
 	sharedTags  []string
+	libboxTags  []string
 	iosTags     []string
 )
 
@@ -48,6 +49,8 @@ const libName = "edgegate-core"
 func init() {
 	sharedFlags = append(sharedFlags, "-trimpath")
 	sharedTags = append(sharedTags, "with_gvisor", "with_quic", "with_wireguard", "with_utls", "with_clash_api")
+	libboxTags = append(libboxTags, sharedTags...)
+	libboxTags = append(libboxTags, "badlinkname", "tfogo_checklinkname0")
 	iosTags = append(iosTags, "with_dhcp", "with_low_memory", "with_conntrack")
 }
 
@@ -201,8 +204,9 @@ func buildAndroid() {
 	}
 
 	args = append(args, sharedFlags...)
+	args = append(args, "-ldflags", "-X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0 -linkmode=external -extldflags=-Wl,-z,max-page-size=16384")
 	args = append(args, "-tags")
-	args = append(args, strings.Join(sharedTags, ","))
+	args = append(args, strings.Join(libboxTags, ","))
 
 	output := filepath.Join("bin", libName+".aar")
 	args = append(args, "-o", output, "github.com/sagernet/sing-box/experimental/libbox", "./mobile")
@@ -228,7 +232,8 @@ func buildIOS() {
 	}
 
 	args = append(args, sharedFlags...)
-	tags := append(sharedTags, iosTags...)
+	args = append(args, "-ldflags", "-X internal/godebug.defaultGODEBUG=multipathtcp=0 -s -w -buildid= -checklinkname=0")
+	tags := append(append([]string{}, libboxTags...), iosTags...)
 	args = append(args, "-tags")
 	args = append(args, strings.Join(tags, ","))
 

@@ -12,8 +12,11 @@ ifeq ($(OS),Windows_NT)
 endif
 
 TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api
+LIBBOX_TAGS=$(TAGS),badlinkname,tfogo_checklinkname0
 IOS_ADD_TAGS=with_dhcp,with_low_memory,with_conntrack
-ANDROID_LDFLAGS=-w -s -linkmode=external -extldflags=-Wl,-z,max-page-size=16384
+LIBBOX_LDFLAGS=-X internal/godebug.defaultGODEBUG=multipathtcp=0 -w -s -buildid= -checklinkname=0
+ANDROID_LDFLAGS=$(LIBBOX_LDFLAGS) -linkmode=external -extldflags=-Wl,-z,max-page-size=16384
+IOS_LDFLAGS=$(LIBBOX_LDFLAGS)
 DESKTOP_LDFLAGS=-w -s
 GOBUILDLIB=CGO_ENABLED=1 go build -trimpath -tags $(TAGS) -ldflags="$(DESKTOP_LDFLAGS)" -buildmode=c-shared
 GOBUILDSRV=CGO_ENABLED=1 go build -ldflags "-s -w" -trimpath -tags $(TAGS)
@@ -63,7 +66,7 @@ headers:
 	go build -buildmode=c-archive -o $(BINDIR)/ ./platform/desktop2
 
 android: lib_install
-	gomobile bind -v -androidapi=21 -javapkg=com.edgegate.core -libname=edgegate-core -tags=$(TAGS) -trimpath -target=android -ldflags="$(ANDROID_LDFLAGS)" -o $(BINDIR)/$(LIBNAME).aar github.com/sagernet/sing-box/experimental/libbox ./platform/mobile
+	gomobile bind -v -androidapi=21 -javapkg=com.edgegate.core -libname=edgegate-core -tags=$(LIBBOX_TAGS) -trimpath -target=android -ldflags="$(ANDROID_LDFLAGS)" -o $(BINDIR)/$(LIBNAME).aar github.com/sagernet/sing-box/experimental/libbox ./platform/mobile
 
 sync-artifacts:
 	@if [ -f "$(SYNC_SCRIPT)" ]; then \
@@ -81,11 +84,11 @@ sync-artifacts:
 android-sync: android sync-artifacts
 
 ios-full: lib_install
-	gomobile bind -v  -target ios,iossimulator,tvos,tvossimulator,macos -libname=edgegate-core -tags=$(TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="-w -s" -o $(BINDIR)/$(PRODUCT_NAME).xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
+	gomobile bind -v  -target ios,iossimulator,tvos,tvossimulator,macos -libname=edgegate-core -tags=$(LIBBOX_TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="$(IOS_LDFLAGS)" -o $(BINDIR)/$(PRODUCT_NAME).xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
 	mv $(BINDIR)/$(PRODUCT_NAME).xcframework $(BINDIR)/$(LIBNAME).xcframework 
 
 ios: lib_install
-	gomobile bind -v  -target ios -libname=edgegate-core -tags=$(TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="-w -s" -o $(BINDIR)/EdgegateCore.xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
+	gomobile bind -v  -target ios -libname=edgegate-core -tags=$(LIBBOX_TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="$(IOS_LDFLAGS)" -o $(BINDIR)/EdgegateCore.xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
 	cp Info.plist $(BINDIR)/EdgegateCore.xcframework/
 
 
