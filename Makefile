@@ -85,7 +85,7 @@ android-sync: android sync-artifacts
 
 ios-full: lib_install
 	gomobile bind -v  -target ios,iossimulator,tvos,tvossimulator,macos -libname=edgegate-core -tags=$(LIBBOX_TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="$(IOS_LDFLAGS)" -o $(BINDIR)/$(PRODUCT_NAME).xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
-	mv $(BINDIR)/$(PRODUCT_NAME).xcframework $(BINDIR)/$(LIBNAME).xcframework 
+	true
 
 ios: lib_install
 	gomobile bind -v  -target ios -libname=edgegate-core -tags=$(LIBBOX_TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="$(IOS_LDFLAGS)" -o $(BINDIR)/EdgegateCore.xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
