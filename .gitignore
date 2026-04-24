@@ -11,6 +11,7 @@ data
 node_modules
 *.db
 *.json
+!v2/config/testdata/official_subscription.json
 
 # Allow root npm metadata for CI caching/install
 !/package.json
