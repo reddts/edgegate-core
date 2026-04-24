@@ -34,60 +34,100 @@ func GetProxyInfo(detour adapter.Outbound) *OutboundInfo {
 }
 
 func GetAllProxiesInfo(onlyGroupItems bool) *OutboundGroupList {
+	all, main := GetAllProxiesSnapshots()
+	if onlyGroupItems {
+		return main
+	}
+	return all
+}
+
+func GetAllProxiesSnapshots() (*OutboundGroupList, *OutboundGroupList) {
 	if static.Box == nil {
-		return nil
+		return nil, nil
 	}
 
 	cacheFile := service.FromContext[adapter.CacheFile](static.Box.Context())
 	outbounds := static.Box.GetInstance().Outbound().Outbounds()
-	outboundsConverted := make(map[string]*OutboundInfo, len(outbounds))
+	baseOutbounds := make(map[string]*OutboundInfo, len(outbounds))
 	var outboundGroups []adapter.OutboundGroup
 	for _, it := range outbounds {
 		if outGroup, isGroup := it.(adapter.OutboundGroup); isGroup {
 			outboundGroups = append(outboundGroups, outGroup)
 		}
-		outboundsConverted[it.Tag()] = GetProxyInfo(it)
+		info := GetProxyInfo(it)
+		if info == nil {
+			continue
+		}
+		baseOutbounds[it.Tag()] = info
 	}
 
-	var groups OutboundGroupList
+	allGroups := &OutboundGroupList{}
+	mainGroups := &OutboundGroupList{}
 	for _, outboundGroup := range outboundGroups {
-		var groupInfo OutboundGroup
-		groupInfo.Tag = outboundGroup.Tag()
-		groupInfo.Type = outboundGroup.Type()
-		_, groupInfo.Selectable = outboundGroup.(*protocolgroup.Selector)
+		allGroup := newOutboundGroupInfo(outboundGroup, cacheFile)
+		mainGroup := newOutboundGroupInfo(outboundGroup, cacheFile)
 		selectedTag := outboundGroup.Now()
-		groupInfo.Selected = outboundsConverted[selectedTag]
-		outboundsConverted[outboundGroup.Tag()].GroupSelectedOutbound = groupInfo.Selected
-		if cacheFile != nil {
-			if isExpand, loaded := cacheFile.LoadGroupExpand(groupInfo.Tag); loaded {
-				groupInfo.IsExpand = isExpand
-			}
+		selectedInfo := decorateOutboundInfo(baseOutbounds[selectedTag], true)
+		allGroup.Selected = selectedInfo
+		mainGroup.Selected = cloneOutboundInfo(selectedInfo)
+		if groupBase := baseOutbounds[outboundGroup.Tag()]; groupBase != nil {
+			groupBase.GroupSelectedOutbound = cloneOutboundInfo(selectedInfo)
 		}
 
 		for _, itemTag := range outboundGroup.All() {
-			if onlyGroupItems && itemTag != selectedTag {
+			itemInfo := decorateOutboundInfo(baseOutbounds[itemTag], itemTag == selectedTag)
+			if itemInfo == nil {
 				continue
 			}
-			pinfo := outboundsConverted[itemTag]
-			if pinfo == nil {
-				continue
+			allGroup.Items = append(allGroup.Items, itemInfo)
+			if itemTag == selectedTag {
+				mainGroup.Items = append(mainGroup.Items, cloneOutboundInfo(itemInfo))
 			}
-			pinfo.IsSelected = itemTag == selectedTag
-			groupInfo.Items = append(groupInfo.Items, pinfo)
-			pinfo.IsVisible = !strings.Contains(itemTag, "§hide§")
-			pinfo.TagDisplay = TrimTagName(itemTag)
 		}
-		if len(groupInfo.Items) == 0 {
+		if len(allGroup.Items) == 0 {
 			continue
 		}
-		groups.Items = append(groups.Items, &groupInfo)
+		allGroups.Items = append(allGroups.Items, &allGroup)
+		if len(mainGroup.Items) > 0 {
+			mainGroups.Items = append(mainGroups.Items, &mainGroup)
+		}
 	}
 
-	return &groups
+	return allGroups, mainGroups
+}
+
+func newOutboundGroupInfo(
+	outboundGroup adapter.OutboundGroup,
+	cacheFile adapter.CacheFile,
+) OutboundGroup {
+	var groupInfo OutboundGroup
+	groupInfo.Tag = outboundGroup.Tag()
+	groupInfo.Type = outboundGroup.Type()
+	_, groupInfo.Selectable = outboundGroup.(*protocolgroup.Selector)
+	if cacheFile != nil {
+		if isExpand, loaded := cacheFile.LoadGroupExpand(groupInfo.Tag); loaded {
+			groupInfo.IsExpand = isExpand
+		}
+	}
+	return groupInfo
+}
+
+func decorateOutboundInfo(base *OutboundInfo, isSelected bool) *OutboundInfo {
+	if base == nil {
+		return nil
+	}
+	info := cloneOutboundInfo(base)
+	info.IsSelected = isSelected
+	info.IsVisible = !strings.Contains(info.Tag, "搂hide搂")
+	info.TagDisplay = TrimTagName(info.Tag)
+	if info.GroupSelectedOutbound != nil {
+		info.GroupSelectedOutbound = cloneOutboundInfo(info.GroupSelectedOutbound)
+	}
+	return info
 }
 
 func TrimTagName(tag string) string {
-	return strings.Trim(strings.Split(tag, "§")[0], " ")
+	return strings.Trim(strings.Split(tag, "搂")[0], " ")
 }
 
 type outboundStream interface {

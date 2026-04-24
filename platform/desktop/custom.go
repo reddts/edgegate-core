@@ -207,20 +207,12 @@ func getCoreInfo() *C.char {
 
 //export getSystemInfo
 func getSystemInfo() *C.char {
-	info := hcore.SnapshotSystemInfo()
-	if info == nil {
-		return jsonResult(false, "core service is not started", nil)
-	}
-	return jsonResult(true, "", info)
+	return C.CString(hcore.SnapshotSystemInfoJSON())
 }
 
 //export getOutboundsInfo
 func getOutboundsInfo(onlyMain bool) *C.char {
-	info := hcore.SnapshotOutbounds(bool(onlyMain))
-	if info == nil {
-		return jsonResult(false, "core service is not started", nil)
-	}
-	return jsonResult(true, "", info)
+	return C.CString(hcore.SnapshotOutboundsJSON(bool(onlyMain)))
 }
 
 //export selectOutbound

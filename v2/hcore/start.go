@@ -31,6 +31,7 @@ func saveLastStartRequest(in *StartRequest) error {
 	if in.ConfigContent == "" && in.ConfigPath == "" {
 		return nil
 	}
+	static.SetLastStartRequestName(in.ConfigName)
 	settings := db.GetTable[hcommon.AppSettings]()
 	return settings.UpdateInsert(
 		&hcommon.AppSettings{
@@ -66,6 +67,7 @@ func loadLastStartRequestIfNeeded(in *StartRequest) (*StartRequest, error) {
 	if err != nil {
 		return nil, err
 	}
+	static.SetLastStartRequestName(lastName.Value.(string))
 	return &StartRequest{
 		ConfigPath:    lastPath.Value.(string),
 		ConfigContent: lastContent.Value.(string),
@@ -91,6 +93,7 @@ func StartService(in *StartRequest) (coreResponse *CoreInfoResponse, err error) 
 	}
 
 	static.previousStartRequest = in
+	static.SetLastStartRequestName(in.ConfigName)
 	options, err := BuildConfig(in)
 	if err != nil {
 		return errorWrapper(MessageType_ERROR_BUILDING_CONFIG, err)

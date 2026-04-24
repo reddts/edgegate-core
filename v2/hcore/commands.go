@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/reddts/edgegate-core/v2/config"
-	"github.com/reddts/edgegate-core/v2/db"
 	hcommon "github.com/reddts/edgegate-core/v2/hcommon"
 	adapter "github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/urltest"
@@ -50,13 +49,11 @@ func readStatus(prev *SystemInfo) *SystemInfo {
 			}
 		}
 
-		if prev == nil || prev.CurrentProfile == "" || message.UplinkTotal < 1000000 {
-			settings := db.GetTable[hcommon.AppSettings]()
-			lastName, err := settings.Get("lastStartRequestName")
-			if err == nil {
-				message.CurrentProfile = lastName.Value.(string)
-			}
-		} else {
+		if prev != nil && prev.CurrentProfile != "" && message.UplinkTotal >= 1000000 {
+			message.CurrentProfile = prev.CurrentProfile
+		} else if lastName := static.LastStartRequestName(); lastName != "" {
+			message.CurrentProfile = lastName
+		} else if prev != nil {
 			message.CurrentProfile = prev.CurrentProfile
 		}
 	}
@@ -174,6 +171,7 @@ func SelectOutbound(in *SelectOutboundRequest) (*hcommon.Response, error) {
 		}, E.New("outbound not found in selector: ", in.GroupTag)
 	}
 	Log(LogLevel_DEBUG, LogType_CORE, "Trying to ping outbound: ", in.OutboundTag)
+	markFFIOutboundsDirty()
 	go func() {
 		for _, detour := range static.Box.GetInstance().Outbound().Outbounds() {
 			if urlTest, ok := detour.(*group.URLTest); ok {
@@ -232,6 +230,7 @@ func UrlTest(in *UrlTestRequest) (*hcommon.Response, error) {
 	}
 
 	if urlTest, isURLTest := abstractOutboundGroup.(*group.URLTest); isURLTest {
+		markFFIOutboundsDirty()
 		go func() {
 			urlTest.CheckOutbounds()
 			refreshAllFFIOutbounds()
@@ -266,6 +265,7 @@ func UrlTest(in *UrlTestRequest) (*hcommon.Response, error) {
 				return nil, nil
 			})
 		}
+		markFFIOutboundsDirty()
 		go func() {
 			_ = b.Wait()
 			refreshAllFFIOutbounds()

@@ -21,6 +21,8 @@ type CoreInstance struct {
 	outboundsInfoObserver     *observable.Observer[*OutboundGroupList]
 	mainOutboundsInfoObserver *observable.Observer[*OutboundGroupList]
 	lock                      sync.Mutex
+	lastStartRequestLock      sync.RWMutex
+	lastStartRequestName      string
 	globalPlatformInterface   libbox.PlatformInterface
 	previousStartRequest      *StartRequest
 }
@@ -32,4 +34,16 @@ var static = &CoreInstance{
 	systemInfoObserver:        NewObserver[*SystemInfo](1),
 	outboundsInfoObserver:     NewObserver[*OutboundGroupList](1),
 	mainOutboundsInfoObserver: NewObserver[*OutboundGroupList](1),
+}
+
+func (c *CoreInstance) SetLastStartRequestName(name string) {
+	c.lastStartRequestLock.Lock()
+	defer c.lastStartRequestLock.Unlock()
+	c.lastStartRequestName = name
+}
+
+func (c *CoreInstance) LastStartRequestName() string {
+	c.lastStartRequestLock.RLock()
+	defer c.lastStartRequestLock.RUnlock()
+	return c.lastStartRequestName
 }
