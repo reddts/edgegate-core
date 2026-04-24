@@ -4,8 +4,6 @@ set -euo pipefail
 
 EDGEGATE_TAGS="${EDGEGATE_TAGS:-with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api}"
 
-export GOOS=windows
-export GOARCH=amd64
 export CC="${CC:-x86_64-w64-mingw32-gcc}"
 export CXX="${CXX:-x86_64-w64-mingw32-g++}"
 export CGO_ENABLED=1
@@ -13,7 +11,10 @@ export CGO_ENABLED=1
 mkdir -p bin
 rm -f bin/edgegate-core.dll bin/edgegate-core.h bin/libcore.dll bin/libcore.h bin/EdgegateCli.exe edgegate-core.dll
 
-go run ./cmd/main tunnel exit
+GOOS= GOARCH= go run ./cmd/main tunnel exit
+
+export GOOS=windows
+export GOARCH=amd64
 
 CGO_LDFLAGS= go build -trimpath -tags "${EDGEGATE_TAGS}" -ldflags="-w -s" -buildmode=c-shared -o bin/edgegate-core.dll ./platform/desktop
 cp -f bin/edgegate-core.dll bin/libcore.dll
