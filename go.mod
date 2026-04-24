@@ -196,5 +196,3 @@ require (
 )
 
 replace github.com/bepass-org/warp-plus => github.com/reddts/warp-plus v0.0.0-20260122024325-982cc38af867
-
-replace github.com/sagernet/sing-box => ./third_party/sing-box-1.13.8

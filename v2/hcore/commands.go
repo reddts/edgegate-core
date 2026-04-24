@@ -231,11 +231,15 @@ func UrlTest(in *UrlTestRequest) (*hcommon.Response, error) {
 
 	if urlTest, isURLTest := abstractOutboundGroup.(*group.URLTest); isURLTest {
 		markFFIOutboundsDirty()
-		go func() {
-			urlTest.CheckOutbounds()
-			refreshAllFFIOutbounds()
-			refreshFFIStatus()
-		}()
+		_, err := urlTest.URLTest(static.Box.Context())
+		refreshAllFFIOutbounds()
+		refreshFFIStatus()
+		if err != nil {
+			return &hcommon.Response{
+				Code:    hcommon.ResponseCode_FAILED,
+				Message: err.Error(),
+			}, err
+		}
 	} else {
 		historyStorage := static.Box.UrlTestHistory()
 		outbounds := common.Filter(common.Map(outboundGroup.All(), func(it string) adapter.Outbound {
@@ -266,11 +270,9 @@ func UrlTest(in *UrlTestRequest) (*hcommon.Response, error) {
 			})
 		}
 		markFFIOutboundsDirty()
-		go func() {
-			_ = b.Wait()
-			refreshAllFFIOutbounds()
-			refreshFFIStatus()
-		}()
+		_ = b.Wait()
+		refreshAllFFIOutbounds()
+		refreshFFIStatus()
 	}
 
 	return &hcommon.Response{

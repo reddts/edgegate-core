@@ -1,41 +1,49 @@
 package test
 
 import (
-	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/reddts/edgegate-core/v2/profile"
 )
 
 func TestAddByContent(t *testing.T) {
-	entity, err := profile.AddByUrl("https://www.grde.net/warp", "", false)
+	content, err := os.ReadFile(filepath.Join("testdata", "basic_profile.json"))
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+
+	const profileName = "local-fixture-profile"
+	entity, err := profile.AddByContent(string(content), profileName, false)
 	if err != nil {
 		t.Fatalf("expected no error, but got: %v", err)
 	}
-	fmt.Printf("entity: %v\n", entity)
-	// Check if the content has been added correctly
-	profileTitle := entity.Name
-	expectedTitle := "🔥 WARP 🔥" // The Base64 decoded title
-	if profileTitle != expectedTitle {
-		t.Errorf("expected profile title to be %v, got %v", expectedTitle, profileTitle)
+	t.Cleanup(func() {
+		_ = profile.DeleteById(entity.Id)
+	})
+
+	if entity.Id == "" {
+		t.Fatal("expected generated profile id")
+	}
+	if entity.Name != profileName {
+		t.Fatalf("expected profile name %q, got %q", profileName, entity.Name)
 	}
 
-	// Check subscription userinfo
-	userInfo := entity.SubInfo
-	if userInfo.Upload != 0 || userInfo.Download != 0 || userInfo.Total != 10737418240000000 || userInfo.Expire != 2546249531 {
-		t.Errorf("subscription userinfo not parsed correctly, got: %v", userInfo)
+	stored, err := profile.GetById(entity.Id)
+	if err != nil {
+		t.Fatalf("expected stored profile, got: %v", err)
+	}
+	if stored.Name != profileName {
+		t.Fatalf("expected stored profile name %q, got %q", profileName, stored.Name)
 	}
 
-	// Check URLs
-	supportURL := entity.SubInfo.SupportUrl
-	if supportURL != "https://t.me/edgegate" {
-		t.Errorf("expected support URL to be https://t.me/edgegate, got %v", supportURL)
+	infoPath := filepath.Join("data", "profiles", entity.Id+".info")
+	storedContent, err := os.ReadFile(infoPath)
+	if err != nil {
+		t.Fatalf("expected stored profile content, got: %v", err)
 	}
-
-	profileWebPageURL := entity.SubInfo.WebPageUrl
-	if profileWebPageURL != "https://www.grde.net" {
-		t.Errorf("expected profile web page URL to be https://www.grde.net, got %v", profileWebPageURL)
+	if string(storedContent) != string(content) {
+		t.Fatalf("expected stored content to match fixture")
 	}
-	profile.DeleteById(entity.Id)
-	// You can further assert individual fields of warp configurations
 }
