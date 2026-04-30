@@ -256,7 +256,7 @@ func sanitizeOfficialPlatformInboundOptions(options *option.Options, coreOptions
 	if options == nil || coreOptions == nil {
 		return
 	}
-	if runtime.GOOS != "windows" {
+	if !isDesktopRuntime() {
 		return
 	}
 
@@ -264,6 +264,15 @@ func sanitizeOfficialPlatformInboundOptions(options *option.Options, coreOptions
 		options.Inbounds = removeOfficialTunInbounds(options.Inbounds)
 		ensureOfficialDesktopMixedInbound(options, coreOptions)
 		ensureOfficialDesktopDNSInbound(options, coreOptions)
+	}
+}
+
+func isDesktopRuntime() bool {
+	switch runtime.GOOS {
+	case "darwin", "linux", "windows":
+		return true
+	default:
+		return false
 	}
 }
 

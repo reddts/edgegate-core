@@ -4,6 +4,8 @@ BASENAME=$(PRODUCT_NAME)
 BINDIR=bin
 LIBNAME=$(PRODUCT_NAME)
 CLINAME=EdgegateCli
+APPLE_FRAMEWORK_NAME=EdgegateCore
+APPLE_XCFRAMEWORK=$(APPLE_FRAMEWORK_NAME).xcframework
 
 BRANCH=$(shell git branch --show-current)
 VERSION=$(shell git describe --tags || echo "unknown version")
@@ -84,12 +86,12 @@ sync-artifacts:
 android-sync: android sync-artifacts
 
 ios-full: lib_install
-	gomobile bind -v  -target ios,iossimulator,tvos,tvossimulator,macos -libname=edgegate-core -tags=$(LIBBOX_TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="$(IOS_LDFLAGS)" -o $(BINDIR)/$(PRODUCT_NAME).xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
+	gomobile bind -v  -target ios,iossimulator,tvos,tvossimulator,macos -libname=edgegate-core -tags=$(LIBBOX_TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="$(IOS_LDFLAGS)" -o $(BINDIR)/$(APPLE_XCFRAMEWORK) github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
 	true
 
 ios: lib_install
-	gomobile bind -v  -target ios -libname=edgegate-core -tags=$(LIBBOX_TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="$(IOS_LDFLAGS)" -o $(BINDIR)/EdgegateCore.xcframework github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
-	cp Info.plist $(BINDIR)/EdgegateCore.xcframework/
+	gomobile bind -v  -target ios -libname=edgegate-core -tags=$(LIBBOX_TAGS),$(IOS_ADD_TAGS) -trimpath -ldflags="$(IOS_LDFLAGS)" -o $(BINDIR)/$(APPLE_XCFRAMEWORK) github.com/sagernet/sing-box/experimental/libbox ./platform/mobile && \
+	cp Info.plist $(BINDIR)/$(APPLE_XCFRAMEWORK)/
 
 
 webui:
@@ -163,5 +165,4 @@ clean:
 release: # Create a new tag for release.	
 	@bash -c '.github/change_version.sh'
 	
-
 

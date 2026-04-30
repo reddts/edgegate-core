@@ -1,3 +1,6 @@
+//go:build legacy_grpc_runtime
+// +build legacy_grpc_runtime
+
 package cmd
 
 import (
@@ -35,4 +38,8 @@ var commandService = &cobra.Command{
 			fmt.Printf("exitCode:%d msg=%s", code, out)
 		}
 	},
+}
+
+func init() {
+	mainCommand.AddCommand(commandService)
 }

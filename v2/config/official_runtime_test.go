@@ -142,7 +142,7 @@ func TestPrepareOfficialRuntimeOptions_WindowsDNSFallsBackToLocal(t *testing.T) 
 	}
 }
 
-func TestPrepareOfficialRuntimeOptions_WindowsDesktopProxyInbounds(t *testing.T) {
+func TestPrepareOfficialRuntimeOptions_DesktopProxyInbounds(t *testing.T) {
 	options := &option.Options{
 		Inbounds: []option.Inbound{
 			{
@@ -171,9 +171,9 @@ func TestPrepareOfficialRuntimeOptions_WindowsDesktopProxyInbounds(t *testing.T)
 
 	PrepareOfficialRuntimeOptions(options, coreOptions)
 
-	if runtime.GOOS == "windows" {
+	if isDesktopRuntime() {
 		if len(options.Inbounds) != 2 {
-			t.Fatalf("expected windows inbounds to be rewritten to mixed+dns, got %d", len(options.Inbounds))
+			t.Fatalf("expected desktop inbounds to be rewritten to mixed+dns, got %d", len(options.Inbounds))
 		}
 		if options.Inbounds[0].Type != C.TypeMixed || options.Inbounds[0].Tag != InboundMixedTag {
 			t.Fatalf("expected first inbound to be mixed-in, got type=%q tag=%q", options.Inbounds[0].Type, options.Inbounds[0].Tag)
@@ -205,6 +205,6 @@ func TestPrepareOfficialRuntimeOptions_WindowsDesktopProxyInbounds(t *testing.T)
 	}
 
 	if len(options.Inbounds) != 1 || options.Inbounds[0].Type != C.TypeTun {
-		t.Fatalf("expected non-windows inbounds to remain unchanged, got %#v", options.Inbounds)
+		t.Fatalf("expected non-desktop inbounds to remain unchanged, got %#v", options.Inbounds)
 	}
 }
