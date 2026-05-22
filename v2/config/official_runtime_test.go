@@ -188,8 +188,8 @@ func TestPrepareOfficialRuntimeOptions_DesktopProxyInbounds(t *testing.T) {
 		if !mixedOptions.SetSystemProxy {
 			t.Fatal("expected mixed inbound to enable system proxy")
 		}
-		if got := mixedOptions.InboundOptions.DomainStrategy; got != option.DomainStrategy(C.DomainStrategyIPv4Only) {
-			t.Fatalf("expected mixed inbound domain strategy ipv4_only, got %q", got)
+		if mixedOptions.InboundOptions != (option.InboundOptions{}) {
+			t.Fatalf("expected mixed inbound legacy options to be empty, got %#v", mixedOptions.InboundOptions)
 		}
 		if options.Inbounds[1].Type != C.TypeDirect || options.Inbounds[1].Tag != InboundDNSTag {
 			t.Fatalf("expected second inbound to be dns direct inbound, got type=%q tag=%q", options.Inbounds[1].Type, options.Inbounds[1].Tag)
@@ -206,5 +206,38 @@ func TestPrepareOfficialRuntimeOptions_DesktopProxyInbounds(t *testing.T) {
 
 	if len(options.Inbounds) != 1 || options.Inbounds[0].Type != C.TypeTun {
 		t.Fatalf("expected non-desktop inbounds to remain unchanged, got %#v", options.Inbounds)
+	}
+}
+
+func TestNormalizeIOSPacketTunnelMode(t *testing.T) {
+	coreOptions := &CoreOptions{
+		InboundOptions: InboundOptions{
+			EnableTun:        false,
+			EnableTunService: false,
+			SetSystemProxy:   true,
+		},
+	}
+
+	NormalizeIOSPacketTunnelMode("ios", coreOptions)
+
+	if !coreOptions.EnableTun {
+		t.Fatal("expected iOS packet tunnel mode to force tun on smart proxy mode")
+	}
+	if coreOptions.SetSystemProxy {
+		t.Fatal("expected iOS packet tunnel mode to disable set-system-proxy")
+	}
+
+	desktopOptions := &CoreOptions{
+		InboundOptions: InboundOptions{
+			EnableTun:      false,
+			SetSystemProxy: true,
+		},
+	}
+	NormalizeIOSPacketTunnelMode("darwin", desktopOptions)
+	if desktopOptions.EnableTun {
+		t.Fatal("expected non-iOS runtime to keep desktop proxy mode unchanged")
+	}
+	if !desktopOptions.SetSystemProxy {
+		t.Fatal("expected non-iOS runtime to keep set-system-proxy unchanged")
 	}
 }

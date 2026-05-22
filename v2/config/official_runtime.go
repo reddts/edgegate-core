@@ -62,6 +62,7 @@ func PrepareOfficialRuntimeOptions(options *option.Options, coreOptions *CoreOpt
 	if options == nil {
 		return
 	}
+	NormalizeIOSPacketTunnelMode(runtime.GOOS, coreOptions)
 	sanitizeOfficialPlatformRouteOptions(options)
 	sanitizeOfficialPlatformDNSOptions(options)
 	sanitizeOfficialPlatformRouteDNSOptions(options)
@@ -256,6 +257,12 @@ func sanitizeOfficialPlatformInboundOptions(options *option.Options, coreOptions
 	if options == nil || coreOptions == nil {
 		return
 	}
+	if runtime.GOOS == "ios" {
+		// iOS uses NEPacketTunnel to own traffic interception. Rewriting proxy mode
+		// into a desktop mixed inbound makes sing-box try DarwinSystemProxy, which
+		// crashes inside the extension and bypasses the packet-tunnel path.
+		return
+	}
 	if !isDesktopRuntime() {
 		return
 	}
@@ -269,7 +276,7 @@ func sanitizeOfficialPlatformInboundOptions(options *option.Options, coreOptions
 
 func isDesktopRuntime() bool {
 	switch runtime.GOOS {
-	case "darwin", "linux", "windows":
+	case "darwin", "ios", "linux", "windows":
 		return true
 	default:
 		return false
@@ -291,7 +298,7 @@ func removeOfficialTunInbounds(inbounds []option.Inbound) []option.Inbound {
 }
 
 func ensureOfficialDesktopMixedInbound(options *option.Options, coreOptions *CoreOptions) {
-	listenAddr, inboundDomainStrategy := officialDesktopInboundSettings(coreOptions)
+	listenAddr, _ := officialDesktopInboundSettings(coreOptions)
 	inbound := option.Inbound{
 		Type: C.TypeMixed,
 		Tag:  InboundMixedTag,
@@ -299,11 +306,6 @@ func ensureOfficialDesktopMixedInbound(options *option.Options, coreOptions *Cor
 			ListenOptions: option.ListenOptions{
 				Listen:     &listenAddr,
 				ListenPort: coreOptions.MixedPort,
-				InboundOptions: option.InboundOptions{
-					SniffEnabled:             true,
-					SniffOverrideDestination: true,
-					DomainStrategy:           inboundDomainStrategy,
-				},
 			},
 			SetSystemProxy: coreOptions.SetSystemProxy,
 		},
@@ -350,6 +352,20 @@ func officialDesktopInboundSettings(coreOptions *CoreOptions) (badoption.Addr, o
 		inboundDomainStrategy = coreOptions.IPv6Mode
 	}
 	return badoption.Addr(netip.MustParseAddr(bind)), inboundDomainStrategy
+}
+
+func NormalizeIOSPacketTunnelMode(goos string, coreOptions *CoreOptions) {
+	if goos != "ios" || coreOptions == nil {
+		return
+	}
+	if coreOptions.EnableTun || coreOptions.EnableTunService {
+		coreOptions.SetSystemProxy = false
+		return
+	}
+	if coreOptions.SetSystemProxy {
+		coreOptions.EnableTun = true
+		coreOptions.SetSystemProxy = false
+	}
 }
 
 func buildDNSServerIndex(options *option.DNSOptions) map[string]option.DNSServerOptions {

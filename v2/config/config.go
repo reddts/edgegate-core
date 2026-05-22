@@ -357,11 +357,6 @@ func setInbound(options *option.Options, opt *CoreOptions) {
 				ListenOptions: option.ListenOptions{
 					Listen:     &listenAddr,
 					ListenPort: opt.MixedPort,
-					InboundOptions: option.InboundOptions{
-						SniffEnabled:             true,
-						SniffOverrideDestination: true,
-						DomainStrategy:           inboundDomainStrategy,
-					},
 				},
 				SetSystemProxy: opt.SetSystemProxy,
 			},

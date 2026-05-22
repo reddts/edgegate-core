@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -158,6 +159,7 @@ func BuildConfig(configPath string, optionsJSON string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	cfg.NormalizeIOSPacketTunnelMode(runtime.GOOS, coreOptions)
 
 	content, err := os.ReadFile(configPath)
 	if err != nil {
@@ -171,9 +173,10 @@ func BuildConfig(configPath string, optionsJSON string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		cfg.ApplyOfficialAndroidRuntimeDefaults(parsedOptions)
-		cfg.ApplyOfficialResolveDestinationPolicy(parsedOptions, coreOptions)
-		cfg.ApplyOfficialRouteRegionPolicy(parsedOptions, coreOptions)
+		cfg.PrepareOfficialRuntimeOptions(parsedOptions, coreOptions)
+		if runtime.GOOS == "android" {
+			cfg.ApplyOfficialAndroidRuntimeDefaults(parsedOptions)
+		}
 		finalContent, err := cfg.ToJson(*parsedOptions)
 		if err != nil {
 			return "", err
@@ -198,6 +201,7 @@ func ValidateConfig(configPath string, optionsJSON string) error {
 	if err != nil {
 		return err
 	}
+	cfg.NormalizeIOSPacketTunnelMode(runtime.GOOS, coreOptions)
 
 	content, err := os.ReadFile(configPath)
 	if err != nil {
