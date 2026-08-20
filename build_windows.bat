@@ -8,8 +8,6 @@ set CXX=x86_64-w64-mingw32-g++
 set CGO_ENABLED=1
 set EDGEGATE_TAGS=with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api
 
-go run ./cmd/main tunnel exit
-
 if exist bin\edgegate-core.dll del /f /q bin\edgegate-core.dll
 if exist bin\EdgegateCli.exe del /f /q bin\EdgegateCli.exe
 

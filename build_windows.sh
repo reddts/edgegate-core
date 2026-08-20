@@ -7,8 +7,6 @@ EDGEGATE_TAGS="${EDGEGATE_TAGS:-with_gvisor,with_quic,with_wireguard,with_utls,w
 mkdir -p bin
 rm -f bin/edgegate-core.dll bin/edgegate-core.h bin/libcore.dll bin/libcore.h bin/EdgegateCli.exe edgegate-core.dll
 
-GOOS= GOARCH= CC= CXX= CGO_ENABLED= go run ./cmd/main tunnel exit
-
 export GOOS=windows
 export GOARCH=amd64
 export CC="${CC:-x86_64-w64-mingw32-gcc}"
