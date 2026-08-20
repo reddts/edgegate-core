@@ -27,8 +27,9 @@ jobs:
         with:
           ref: main
       - run: |
-          curl -L -o edgegate-core.tar.gz https://codeload.github.com/reddts/edgegate-core/tar.gz/${{ inputs.tag-name  }}
+          curl --fail --location --retry 3 -o edgegate-core.tar.gz https://codeload.github.com/reddts/edgegate-core/tar.gz/${{ inputs.tag-name  }}
           EDGEGATE_CORE_WRT_HASH=$(sha256sum edgegate-core.tar.gz | cut -d' ' -f1)
+          rm -f edgegate-core.tar.gz
           github_ref_name="${{ inputs.tag-name }}"
           IFS="." read -r -a VERSION_ARRAY <<< "${github_ref_name#v}"
           VERSION_STR="${VERSION_ARRAY[0]}.${VERSION_ARRAY[1]}.${VERSION_ARRAY[2]}"
