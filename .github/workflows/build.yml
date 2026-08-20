@@ -34,7 +34,7 @@ jobs:
           VERSION_STR="${VERSION_ARRAY[0]}.${VERSION_ARRAY[1]}.${VERSION_ARRAY[2]}"
           sed -i "s|PKG_VERSION:=.*|PKG_VERSION:=${VERSION_STR}|g" platform/wrt/Makefile
           sed -i "s|PKG_HASH:=.*|PKG_HASH:=${EDGEGATE_CORE_WRT_HASH}|g" platform/wrt/Makefile 
-      - uses: peter-evans/create-pull-request@v7
+      - uses: peter-evans/create-pull-request@v8
         with:
             commit-message: "Update WRT package HASH."
             branch: "automation/update-wrt-hash-${{ inputs.tag-name }}"
@@ -168,15 +168,8 @@ jobs:
         run: tree
         working-directory: bin
 
-      - name: Delete Current Release Assets
-        uses: 8Mi-Tech/delete-release-assets-action@main
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          tag: 'draft'
-          deleteOnlyFromDrafts: false
-
       - name: Create or Update Draft Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         if: ${{ success() }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -185,6 +178,7 @@ jobs:
           name: 'draft'
           tag_name: 'draft'
           prerelease: true
+          overwrite_files: true
 
   upload-release:
     permissions: write-all
@@ -203,7 +197,7 @@ jobs:
         working-directory: bin
 
       - name: Upload Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         if: ${{ success() }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -211,6 +205,7 @@ jobs:
           tag_name: ${{ inputs.tag-name  }}
           prerelease: false
           files: bin/*.tar.gz
+          overwrite_files: true
 
 
 
