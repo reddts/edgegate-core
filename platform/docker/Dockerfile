@@ -1,6 +1,7 @@
 FROM alpine:latest
 ENV CONFIG='https://raw.githubusercontent.com/ircfspace/warpsub/main/export/warp#WARP%20(IRCF)'
-ENV VERSION=v3.1.8
+ARG VERSION=v3.1.8
+ENV VERSION=${VERSION}
 WORKDIR /degegate
 RUN apk add  curl tar gzip libc6-compat # iptables ip6tables
 
@@ -16,7 +17,7 @@ RUN echo "architecture: $(apk --print-arch)" && \
             *) echo "Unsupported architecture: $(apk --print-arch) $(uname -m)" && exit 1 ;; \
         esac && \
         echo "Downloading https://github.com/reddts/edgegate-core/releases/download/${VERSION}/edgegate-cli-linux-$ARCH.tar.gz" && \
-        curl -L -o edgegate-cli.tar.gz https://github.com/reddts/edgegate-core/releases/download/${VERSION}/edgegate-cli-linux-$ARCH.tar.gz && \
+        curl --fail --location --retry 3 -o edgegate-cli.tar.gz https://github.com/reddts/edgegate-core/releases/download/${VERSION}/edgegate-cli-linux-$ARCH.tar.gz && \
         tar -xzf edgegate-cli.tar.gz && rm edgegate-cli.tar.gz
 COPY edgegate.sh .
 RUN chmod +x edgegate.sh

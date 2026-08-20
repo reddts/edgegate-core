@@ -17,13 +17,16 @@ env:
 
 jobs:
   update_wrt_hash:
-    permissions: write-all
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     if: ${{ inputs.channel=='prod' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - run: |
-          git checkout -b main
           curl -L -o edgegate-core.tar.gz https://codeload.github.com/reddts/edgegate-core/tar.gz/${{ inputs.tag-name  }}
           EDGEGATE_CORE_WRT_HASH=$(sha256sum edgegate-core.tar.gz | cut -d' ' -f1)
           github_ref_name="${{ inputs.tag-name }}"
@@ -31,11 +34,13 @@ jobs:
           VERSION_STR="${VERSION_ARRAY[0]}.${VERSION_ARRAY[1]}.${VERSION_ARRAY[2]}"
           sed -i "s|PKG_VERSION:=.*|PKG_VERSION:=${VERSION_STR}|g" platform/wrt/Makefile
           sed -i "s|PKG_HASH:=.*|PKG_HASH:=${EDGEGATE_CORE_WRT_HASH}|g" platform/wrt/Makefile 
-      - uses: stefanzweifel/git-auto-commit-action@v5
+      - uses: peter-evans/create-pull-request@v7
         with:
-            commit_message: "Update WRT package HASH."
-            branch: main
-            # push_options: --force
+            commit-message: "Update WRT package HASH."
+            branch: "automation/update-wrt-hash-${{ inputs.tag-name }}"
+            delete-branch: true
+            title: "Update WRT package hash for ${{ inputs.tag-name }}"
+            body: "Automated update for the ${{ inputs.tag-name }} release."
   build:
     permissions: write-all
     strategy:
@@ -273,6 +278,7 @@ jobs:
           file: platform/docker/Dockerfile
           build-args: |
             BUILDKIT_CONTEXT_KEEP_GIT_DIR=1
+            VERSION=${{ inputs.tag-name }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY_IMAGE }},push-by-digest=true,name-canonical=true,push=true
       - name: Export digest
